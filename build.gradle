@@ -1,0 +1,85 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+        google()
+    }
+}
+
+apply plugin: "java"
+apply plugin: "application"
+
+version = '1.0'
+
+ext {
+    appName = "benim-oyunum"
+    gdxVersion = '1.12.1'
+    mainClassName = "DesktopLauncher"
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    google()
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+}
+
+dependencies {
+    implementation "com.badlogicgames.gdx:gdx:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+
+    // FreeType
+    implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+
+    // Gamepad
+    implementation "com.badlogicgames.gdx-controllers:gdx-controllers-core:2.2.4"
+    implementation "com.badlogicgames.gdx-controllers:gdx-controllers-desktop:2.2.4"
+
+}
+
+application {
+    mainClass = project.ext.mainClassName
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["src/main/java"]
+        }
+        resources {
+            srcDirs = ["src/main/resources"]
+        }
+    }
+}
+
+task dist(type: Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes(
+                'Main-Class': mainClassName,
+                'Implementation-Title': appName,
+                'Implementation-Version': version
+        )
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+
+    from sourceSets.main.output
+
+    from("src/main/resources") {
+        into ""
+    }
+
+    archiveBaseName.set(appName)
+    archiveClassifier.set('dist')
+    destinationDirectory.set(file("${buildDir}/dist"))
+}
+
+dist.dependsOn classes

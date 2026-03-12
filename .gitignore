@@ -1,0 +1,22 @@
+# Build output
+build/
+
+# Gradle
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.classpath
+*.project
+.settings/
+
+# Logs
+*.log
+hs_err_pid*.log
+
+# OS
+.DS_Store
+Thumbs.db
