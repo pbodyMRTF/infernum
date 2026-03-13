@@ -1,11 +1,8 @@
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Graphics;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
-import java.util.Random;
 
-public class DesktopLauncher {
-    public static void  main(String[] args) {
+class DesktopLauncher {
+    static void  main() {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.useVsync(true);
 
