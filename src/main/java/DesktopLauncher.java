@@ -10,7 +10,6 @@ public class DesktopLauncher {
         config.useVsync(true);
 
         config.setTitle("sübhanallah bune");
-
         // Başlangıçta config dosyasını oku
         GameConfig gameConfig = ConfigManager.loadConfig();
         if ("FULLSCREEN".equals(gameConfig.Screen)) {

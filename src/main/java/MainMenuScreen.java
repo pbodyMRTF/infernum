@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.utils.I18NBundle;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 import java.util.Random;
@@ -52,6 +53,12 @@ public class MainMenuScreen implements Screen {
     private boolean prevStickUp    = false;
     private boolean prevStickDown  = false;
 
+    I18NBundle bundle = I18NBundle.createBundle(
+            Gdx.files.internal("i18n/strings"),
+            new java.util.Locale("tr", "TR"),
+            "UTF-8"
+    );
+
     public MainMenuScreen(final Jgame game) {
         this.game = game;
         batch = new SpriteBatch();
@@ -63,7 +70,7 @@ public class MainMenuScreen implements Screen {
         camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
 
-        titleText = "      Infernum";
+        titleText = bundle.get("menu.title");
 
         initParticles();
     }
@@ -88,7 +95,6 @@ public class MainMenuScreen implements Screen {
             particleSize[i] = 2 + rand.nextFloat() * 4;
         }
     }
-
     @Override
     public void render(float delta) {
         updateAnimations(delta);
@@ -120,15 +126,15 @@ public class MainMenuScreen implements Screen {
         float menuStartY = VIRTUAL_HEIGHT / 2f;
         float spacing = 50f;
 
-        drawMenuItem("Başlat", menuX, menuStartY - 0 * spacing, 0);
-        drawMenuItem("Eğitim", menuX, menuStartY - 1 * spacing, 1);
-        drawMenuItem("Ayarlar", menuX, menuStartY - 2 * spacing, 2);
-        drawMenuItem("Credits", menuX, menuStartY - 3 * spacing, 3);
-        drawMenuItem("Exit", menuX, menuStartY - 4 * spacing, 4);
+        drawMenuItem(bundle.get("menu.start"), menuX, menuStartY, 0);
+        drawMenuItem(bundle.get("menu.tutorial"), menuX, menuStartY - spacing, 1);
+        drawMenuItem(bundle.get("menu.settings"), menuX, menuStartY - 2 * spacing, 2);
+        drawMenuItem(bundle.get("menu.credits"), menuX, menuStartY - 3 * spacing, 3);
+        drawMenuItem(bundle.get("menu.exit"), menuX, menuStartY - 4 * spacing, 4);
 
         font.setColor(0.7f, 0.7f, 0.7f, menuAlpha * 0.6f);
         font.getData().setScale(0.7f);
-        font.draw(batch, "powered by LibGDX and LWJGL | Game Version: " + Jgame.Version, 10, 30);
+        font.draw(batch, bundle.get("menu.version"), 10, 30);
         font.getData().setScale(1f);
 
         batch.end();
