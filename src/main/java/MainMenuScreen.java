@@ -21,7 +21,6 @@ public class MainMenuScreen implements Screen {
     SpriteBatch batch;
     ShapeRenderer shapeRenderer;
     BitmapFont font;
-    String titleText;
 
     private OrthographicCamera camera;
     private ExtendViewport viewport;
@@ -70,7 +69,7 @@ public class MainMenuScreen implements Screen {
         camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
 
-        titleText = bundle.get("menu.title");
+
 
         initParticles();
     }
@@ -115,8 +114,8 @@ public class MainMenuScreen implements Screen {
 
         font.getData().setScale(2.3f + titleScale * 0.1f);
         font.setColor(1, 0.3f, 0.2f, 1);
-        float titleWidth = 350;
-        font.draw(batch, titleText, VIRTUAL_WIDTH / 2f - titleWidth, VIRTUAL_HEIGHT / 2f + 100);
+        float titleWidth = 100;
+        font.draw(batch, bundle.get("menu.title"), VIRTUAL_WIDTH / 2f - titleWidth, VIRTUAL_HEIGHT / 2f + 100);
         font.setColor(1, 1, 1, 1);
         font.getData().setScale(1f);
 
