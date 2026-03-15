@@ -1,7 +1,8 @@
 {
     "music":true,
     "difficulty":"NORMAL",
-    "Screen": "FULLSCREEN"
+    "Screen": "FULLSCREEN",
+    "language": "tr"
 
 }
 

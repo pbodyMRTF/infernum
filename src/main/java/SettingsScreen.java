@@ -10,7 +10,6 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.utils.I18NBundle;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 public class SettingsScreen implements Screen {
@@ -22,57 +21,61 @@ public class SettingsScreen implements Screen {
 
     private OrthographicCamera camera;
     private ExtendViewport viewport;
-    private static final float VIRTUAL_WIDTH = 1024f;
+    private static final float VIRTUAL_WIDTH  = 1024f;
     private static final float VIRTUAL_HEIGHT = 768f;
 
-    private float menuAlpha = 0f;
+    private float menuAlpha     = 0f;
     private float backgroundHue = 0f;
-    private int selectedOption = 0;
+    private int   selectedOption = 0;
     private float selectionBlink = 0f;
 
-    private String[] options = new String[4];
+    private String[] options = new String[5];
 
-    private static final int GAMEPAD_BUTTON_A    = 0;
-    private static final int GAMEPAD_BUTTON_B    = 1;
-    private static final int GAMEPAD_AXIS_LEFT_Y = 1;
-    private static final float DEADZONE          = 0.5f;
+    private static final int   GAMEPAD_BUTTON_A    = 0;
+    private static final int   GAMEPAD_BUTTON_B    = 1;
+    private static final int   GAMEPAD_AXIS_LEFT_Y = 1;
+    private static final float DEADZONE            = 0.5f;
 
     private boolean prevButtonA   = false;
     private boolean prevButtonB   = false;
     private boolean prevStickUp   = false;
     private boolean prevStickDown = false;
 
-    I18NBundle bundle = I18NBundle.createBundle(
-            Gdx.files.internal("i18n/strings"),
-            new java.util.Locale("tr", "TR"),
-            "UTF-8"
-    );
-
     public SettingsScreen(final Jgame game) {
-        this.game = game;
-        this.batch = new SpriteBatch();
+        this.game         = game;
+        this.batch        = new SpriteBatch();
         this.shapeRenderer = new ShapeRenderer();
-        this.font = game.font;
+        this.font         = game.font;
 
         camera = new OrthographicCamera();
         viewport = new ExtendViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, camera);
         camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
 
+        refreshOptions();
+    }
+
+    // Dil değişince tüm option label'larını yeniden üret
+    private void refreshOptions() {
         GameConfig config = ConfigManager.loadConfig();
 
-        options[0] = config.music ? bundle.get("settings.music.on") : bundle.get("settings.music.off");
-        options[1] = bundle.format("settings.difficulty", config.difficulty);
+        options[0] = config.music
+                ? game.bundle.get("settings.music.on")
+                : game.bundle.get("settings.music.off");
+
+        options[1] = game.bundle.format("settings.difficulty", config.difficulty);
+
         options[2] = config.Screen.equals("FULLSCREEN")
-                ? bundle.get("settings.screen.fullscreen")
-                : bundle.get("settings.screen.window");
-        options[3] = bundle.get("settings.back");
+                ? game.bundle.get("settings.screen.fullscreen")
+                : game.bundle.get("settings.screen.window");
+
+        options[3] = game.bundle.format("settings.language", config.language.toUpperCase());
+
+        options[4] = game.bundle.get("settings.back");
     }
 
     private Controller getGamepad() {
-        if (Controllers.getControllers().size > 0) {
-            return Controllers.getControllers().first();
-        }
+        if (Controllers.getControllers().size > 0) return Controllers.getControllers().first();
         return null;
     }
 
@@ -99,11 +102,11 @@ public class SettingsScreen implements Screen {
 
         font.getData().setScale(2.0f);
         font.setColor(1, 0.3f, 0.2f, menuAlpha);
-        font.draw(batch, bundle.get("settings.title"), VIRTUAL_WIDTH / 2f - 100, VIRTUAL_HEIGHT - 100);
+        font.draw(batch, game.bundle.get("settings.title"), VIRTUAL_WIDTH / 2f - 100, VIRTUAL_HEIGHT - 100);
         font.getData().setScale(1f);
 
-        float menuStartY = VIRTUAL_HEIGHT / 2f + 50;
-        float menuX = VIRTUAL_WIDTH / 2f - 150;
+        float menuStartY = VIRTUAL_HEIGHT / 2f + 100;
+        float menuX      = VIRTUAL_WIDTH  / 2f - 150;
 
         for (int i = 0; i < options.length; i++) {
             if (i == selectedOption) {
@@ -126,25 +129,23 @@ public class SettingsScreen implements Screen {
     }
 
     private void updateAnimations(float delta) {
-        menuAlpha = Math.min(menuAlpha + delta * 1.2f, 1f);
-        backgroundHue = (backgroundHue + delta * 20f) % 360f;
-        selectionBlink = MathUtils.sin(Gdx.graphics.getFrameId() * 0.1f) * 0.3f + 0.7f;
+        menuAlpha       = Math.min(menuAlpha + delta * 1.2f, 1f);
+        backgroundHue   = (backgroundHue + delta * 20f) % 360f;
+        selectionBlink  = MathUtils.sin(Gdx.graphics.getFrameId() * 0.1f) * 0.3f + 0.7f;
     }
 
     private void drawDecorations() {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         shapeRenderer.setColor(1, 1, 1, 0.2f);
-
         float padding = 30;
         shapeRenderer.rect(padding, padding, VIRTUAL_WIDTH - padding * 2, VIRTUAL_HEIGHT - padding * 2);
-
         shapeRenderer.end();
     }
 
     private void handleInput() {
         Controller c = getGamepad();
 
-        float stickY = (c != null) ? c.getAxis(GAMEPAD_AXIS_LEFT_Y) : 0f;
+        float stickY      = (c != null) ? c.getAxis(GAMEPAD_AXIS_LEFT_Y) : 0f;
         boolean stickUp   = stickY < -DEADZONE;
         boolean stickDown = stickY >  DEADZONE;
 
@@ -157,54 +158,57 @@ public class SettingsScreen implements Screen {
         boolean back         = Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)
                 || gamepadJustPressed(c, GAMEPAD_BUTTON_B, prevButtonB);
 
-        if (navigateUp && selectedOption > 0) selectedOption--;
+        if (navigateUp   && selectedOption > 0)                  selectedOption--;
         if (navigateDown && selectedOption < options.length - 1) selectedOption++;
 
         if (confirm) {
-            if (selectedOption == 0) {
-                GameConfig config = ConfigManager.getConfig();
-                config.music = !config.music;
-                ConfigManager.saveConfig(config);
-                options[0] = config.music
-                        ? bundle.get("settings.music.on")
-                        : bundle.get("settings.music.off");
+            GameConfig config = ConfigManager.getConfig();
 
-            } else if (selectedOption == 1) {
-                GameConfig config = ConfigManager.getConfig();
+            switch (selectedOption) {
+                case 0: // Müzik
+                    config.music = !config.music;
+                    ConfigManager.saveConfig(config);
+                    options[0] = config.music
+                            ? game.bundle.get("settings.music.on")
+                            : game.bundle.get("settings.music.off");
+                    break;
 
-                if (config.difficulty.equals("NORMAL")) {
-                    config.difficulty = "ZOR";
-                } else if (config.difficulty.equals("ZOR")) {
-                    config.difficulty = "Ben Erlik Han'ım";
-                } else if (config.difficulty.equals("Ben Erlik Han'ım")) {
-                    config.difficulty = "NORMAL";
-                }
+                case 1: // Zorluk
+                    if      (config.difficulty.equals("NORMAL"))          config.difficulty = "ZOR";
+                    else if (config.difficulty.equals("ZOR"))             config.difficulty = "Ben Erlik Han'ım";
+                    else if (config.difficulty.equals("Ben Erlik Han'ım")) config.difficulty = "NORMAL";
+                    ConfigManager.saveConfig(config);
+                    options[1] = game.bundle.format("settings.difficulty", config.difficulty);
+                    break;
 
-                ConfigManager.saveConfig(config);
-                options[1] = bundle.format("settings.difficulty", config.difficulty);
+                case 2: // Ekran modu
+                    if (config.Screen.equals("FULLSCREEN")) {
+                        Gdx.graphics.setWindowedMode(1280, 720);
+                        config.Screen = "WINDOW";
+                    } else {
+                        Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode());
+                        config.Screen = "FULLSCREEN";
+                    }
+                    ConfigManager.saveConfig(config);
+                    options[2] = config.Screen.equals("FULLSCREEN")
+                            ? game.bundle.get("settings.screen.fullscreen")
+                            : game.bundle.get("settings.screen.window");
+                    break;
 
-            } else if (selectedOption == 2) {
-                GameConfig config = ConfigManager.getConfig();
-                if (config.Screen.equals("FULLSCREEN")) {
-                    Gdx.graphics.setWindowedMode(1280, 720);
-                    config.Screen = "WINDOW";
-                } else {
-                    Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode());
-                    config.Screen = "FULLSCREEN";
-                }
-                ConfigManager.saveConfig(config);
-                options[2] = config.Screen.equals("FULLSCREEN")
-                        ? bundle.get("settings.screen.fullscreen")
-                        : bundle.get("settings.screen.window");
+                case 3: // Dil
+                    config.language = "tr".equals(config.language) ? "en" : "tr";
+                    ConfigManager.saveConfig(config);
+                    game.loadBundle();      // bundle'ı yenile
+                    refreshOptions();       // tüm label'ları yeni dilde yaz
+                    break;
 
-            } else if (selectedOption == 3) {
-                game.setScreen(new MainMenuScreen(game));
+                case 4: // Geri
+                    game.setScreen(new MainMenuScreen(game));
+                    break;
             }
         }
 
-        if (back) {
-            game.setScreen(new MainMenuScreen(game));
-        }
+        if (back) game.setScreen(new MainMenuScreen(game));
 
         if (c != null) {
             prevButtonA   = c.getButton(GAMEPAD_BUTTON_A);
@@ -216,8 +220,10 @@ public class SettingsScreen implements Screen {
         }
     }
 
-    @Override
-    public void show() {}
+    @Override public void show()   {}
+    @Override public void pause()  {}
+    @Override public void resume() {}
+    @Override public void hide()   {}
 
     @Override
     public void resize(int width, int height) {
@@ -225,15 +231,6 @@ public class SettingsScreen implements Screen {
         camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
     }
-
-    @Override
-    public void pause() {}
-
-    @Override
-    public void resume() {}
-
-    @Override
-    public void hide() {}
 
     @Override
     public void dispose() {

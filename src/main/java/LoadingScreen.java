@@ -5,7 +5,6 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.utils.I18NBundle;
 
 public class LoadingScreen implements Screen {
     private final Jgame game;
@@ -14,12 +13,6 @@ public class LoadingScreen implements Screen {
     private BitmapFont font;
 
     private float animTimer = 0;
-
-    I18NBundle bundle = I18NBundle.createBundle(
-            Gdx.files.internal("i18n/strings"),
-            new java.util.Locale("tr", "TR"),
-            "UTF-8"
-    );
 
     public LoadingScreen(Jgame game) {
         this.game = game;
@@ -30,7 +23,6 @@ public class LoadingScreen implements Screen {
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
         font = game.font;
-
         Assets.load();
     }
 
@@ -45,13 +37,12 @@ public class LoadingScreen implements Screen {
         float w = Gdx.graphics.getWidth();
         float h = Gdx.graphics.getHeight();
 
-        float barWidth = 400;
+        float barWidth  = 400;
         float barHeight = 30;
-        float barX = (w - barWidth) / 2;
-        float barY = h / 2;
+        float barX      = (w - barWidth) / 2;
+        float barY      = h / 2;
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
         shapeRenderer.setColor(0.3f, 0.3f, 0.3f, 1);
         shapeRenderer.rect(barX, barY, barWidth, barHeight);
 
@@ -60,21 +51,17 @@ public class LoadingScreen implements Screen {
         progressColor.fromHsv(hue * 360, 0.7f, 0.9f);
         shapeRenderer.setColor(progressColor);
         shapeRenderer.rect(barX + 2, barY + 2, (barWidth - 4) * progress, barHeight - 4);
-
         shapeRenderer.end();
 
         batch.begin();
-
         font.setColor(Color.WHITE);
-        font.draw(batch, bundle.format("loading.progress", (int)(progress * 100)),
+        font.draw(batch, game.bundle.format("loading.progress", (int)(progress * 100)),
                 w / 2 - 100, barY + barHeight + 50);
 
         font.getData().setScale(0.6f);
         font.setColor(0.7f, 0.7f, 0.7f, 1);
-        font.draw(batch, bundle.get("loading.message"),
-                w / 2 - 250, barY - 30);
+        font.draw(batch, game.bundle.get("loading.message"), w / 2 - 250, barY - 30);
         font.getData().setScale(1f);
-
         batch.end();
 
         if (Assets.update()) {
@@ -87,9 +74,7 @@ public class LoadingScreen implements Screen {
     @Override public void resume() {}
 
     @Override
-    public void hide() {
-        dispose();
-    }
+    public void hide() { dispose(); }
 
     @Override
     public void dispose() {

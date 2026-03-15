@@ -6,7 +6,7 @@ class DesktopLauncher {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.useVsync(true);
 
-        config.setTitle("sübhanallah bune");
+        config.setTitle("Infernum");
         config.setWindowIcon(Assets.Textures.ENEMY);
 
         // Başlangıçta config dosyasını oku

@@ -57,13 +57,6 @@ public class GameScreen implements Screen {
     private TiledMapTileLayer groundLayer;
     private TiledMapTileLayer wallLayer;
     private TiledMapTileLayer lowObstacleLayer;
-
-    I18NBundle bundle = I18NBundle.createBundle(
-            Gdx.files.internal("i18n/strings"),
-            new java.util.Locale("tr", "TR"),
-            "UTF-8"
-    );
-
     private Texture bulletTex;
     private Texture enemyTex;
     private Texture enemy2Tex;
@@ -656,11 +649,11 @@ public class GameScreen implements Screen {
         if (isSlowed) {
             font.getData().setScale(0.8f);
             float remaining = slowdownTimer.getRemainingSeconds(tickManager.getCurrentTick());
-            font.draw(batch, bundle.format("game.ui.slowed", remaining), UI_WIDTH / 2, UI_HEIGHT - 20);
+            font.draw(batch, game.bundle.format("game.ui.slowed", remaining), UI_WIDTH / 2, UI_HEIGHT - 20);
             font.getData().setScale(1f);
         }
         font.getData().setScale(0.9f);
-        font.draw(batch, bundle.format("game.ui.score", score), UI_WIDTH / 2, 38);
+        font.draw(batch, game.bundle.format("game.ui.score", score), UI_WIDTH / 2, 38);
         font.getData().setScale(1f);
     }
 
@@ -766,12 +759,12 @@ public class GameScreen implements Screen {
 
         font.setColor(Color.WHITE);
         font.getData().setScale(0.5f);
-        String label = bundle.get("game.ui.bayonet");
+        String label = game.bundle.get("game.ui.bayonet");
         if (bayonetCooldown != null && bayonetCooldown.isRunning()) {
-            label += bundle.format("game.ui.bayonet.cooldown",
+            label += game.bundle.format("game.ui.bayonet.cooldown",
                     bayonetCooldown.getRemainingSeconds(tickManager.getCurrentTick()));
         } else {
-            label += bundle.get("game.ui.bayonet.ready");
+            label += game.bundle.get("game.ui.bayonet.ready");
         }
         font.draw(batch, label, barX, barY + barHeight + 18);
         font.getData().setScale(1f);
