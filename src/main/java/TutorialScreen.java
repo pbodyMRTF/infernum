@@ -450,6 +450,7 @@ public class TutorialScreen implements Screen {
 
     private void handlePlayerEnemyCollision() {
         if (player.dead || hitCooldown.isRunning()) return;
+        if (player.getHp() <= 1) return;
         for (Enemy  e : enemies)  { if (checkPlayerHit(e.x, e.y)) { playerTakeDamage(); return; } }
         for (Enemy2 e : enemies2) { if (checkPlayerHit(e.x, e.y)) { playerTakeDamage(); return; } }
         for (Enemy3 e : enemies3) { if (checkPlayerHit(e.x, e.y)) { playerTakeDamage(); return; } }
