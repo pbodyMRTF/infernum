@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.utils.I18NBundle;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 public class SettingsScreen implements Screen {
@@ -29,7 +30,7 @@ public class SettingsScreen implements Screen {
     private int selectedOption = 0;
     private float selectionBlink = 0f;
 
-    private String[] options = {"Müzik: AÇIK", "Zorluk: NORMAL", "Ekran: PENCERE", "Geri Dön"};
+    private String[] options = new String[4];
 
     private static final int GAMEPAD_BUTTON_A    = 0;
     private static final int GAMEPAD_BUTTON_B    = 1;
@@ -40,6 +41,12 @@ public class SettingsScreen implements Screen {
     private boolean prevButtonB   = false;
     private boolean prevStickUp   = false;
     private boolean prevStickDown = false;
+
+    I18NBundle bundle = I18NBundle.createBundle(
+            Gdx.files.internal("i18n/strings"),
+            new java.util.Locale("tr", "TR"),
+            "UTF-8"
+    );
 
     public SettingsScreen(final Jgame game) {
         this.game = game;
@@ -54,10 +61,12 @@ public class SettingsScreen implements Screen {
 
         GameConfig config = ConfigManager.loadConfig();
 
-        options[0] = config.music ? "Müzik: AÇIK" : "Müzik: KAPALI";
-        options[1] = "Zorluk: " + config.difficulty;
-        options[2] = "Ekran: " + (config.Screen.equals("FULLSCREEN") ? "TAM EKRAN" : "PENCERE");
-        options[3] = "Geri Dön";
+        options[0] = config.music ? bundle.get("settings.music.on") : bundle.get("settings.music.off");
+        options[1] = bundle.format("settings.difficulty", config.difficulty);
+        options[2] = config.Screen.equals("FULLSCREEN")
+                ? bundle.get("settings.screen.fullscreen")
+                : bundle.get("settings.screen.window");
+        options[3] = bundle.get("settings.back");
     }
 
     private Controller getGamepad() {
@@ -90,7 +99,7 @@ public class SettingsScreen implements Screen {
 
         font.getData().setScale(2.0f);
         font.setColor(1, 0.3f, 0.2f, menuAlpha);
-        font.draw(batch, "AYARLAR", VIRTUAL_WIDTH / 2f - 100, VIRTUAL_HEIGHT - 100);
+        font.draw(batch, bundle.get("settings.title"), VIRTUAL_WIDTH / 2f - 100, VIRTUAL_HEIGHT - 100);
         font.getData().setScale(1f);
 
         float menuStartY = VIRTUAL_HEIGHT / 2f + 50;
@@ -156,7 +165,9 @@ public class SettingsScreen implements Screen {
                 GameConfig config = ConfigManager.getConfig();
                 config.music = !config.music;
                 ConfigManager.saveConfig(config);
-                options[0] = config.music ? "Müzik: AÇIK" : "Müzik: KAPALI";
+                options[0] = config.music
+                        ? bundle.get("settings.music.on")
+                        : bundle.get("settings.music.off");
 
             } else if (selectedOption == 1) {
                 GameConfig config = ConfigManager.getConfig();
@@ -170,7 +181,7 @@ public class SettingsScreen implements Screen {
                 }
 
                 ConfigManager.saveConfig(config);
-                options[1] = "Zorluk: " + config.difficulty;
+                options[1] = bundle.format("settings.difficulty", config.difficulty);
 
             } else if (selectedOption == 2) {
                 GameConfig config = ConfigManager.getConfig();
@@ -182,7 +193,9 @@ public class SettingsScreen implements Screen {
                     config.Screen = "FULLSCREEN";
                 }
                 ConfigManager.saveConfig(config);
-                options[2] = "Ekran: " + (config.Screen.equals("FULLSCREEN") ? "TAM EKRAN" : "PENCERE");
+                options[2] = config.Screen.equals("FULLSCREEN")
+                        ? bundle.get("settings.screen.fullscreen")
+                        : bundle.get("settings.screen.window");
 
             } else if (selectedOption == 3) {
                 game.setScreen(new MainMenuScreen(game));
