@@ -22,6 +22,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
+import com.badlogic.gdx.utils.I18NBundle;
 import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
@@ -56,6 +57,12 @@ public class GameScreen implements Screen {
     private TiledMapTileLayer groundLayer;
     private TiledMapTileLayer wallLayer;
     private TiledMapTileLayer lowObstacleLayer;
+
+    I18NBundle bundle = I18NBundle.createBundle(
+            Gdx.files.internal("i18n/strings"),
+            new java.util.Locale("tr", "TR"),
+            "UTF-8"
+    );
 
     private Texture bulletTex;
     private Texture enemyTex;
@@ -649,12 +656,11 @@ public class GameScreen implements Screen {
         if (isSlowed) {
             font.getData().setScale(0.8f);
             float remaining = slowdownTimer.getRemainingSeconds(tickManager.getCurrentTick());
-            font.draw(batch, "Yavaşlatıldı! " + String.format("%.1f", remaining), UI_WIDTH / 2, UI_HEIGHT - 20);
+            font.draw(batch, bundle.format("game.ui.slowed", remaining), UI_WIDTH / 2, UI_HEIGHT - 20);
             font.getData().setScale(1f);
         }
-        font.getData().setScale(0.6f);
         font.getData().setScale(0.9f);
-        font.draw(batch, "Skor " + score, UI_WIDTH / 2, 38);
+        font.draw(batch, bundle.format("game.ui.score", score), UI_WIDTH / 2, 38);
         font.getData().setScale(1f);
     }
 
@@ -760,11 +766,12 @@ public class GameScreen implements Screen {
 
         font.setColor(Color.WHITE);
         font.getData().setScale(0.5f);
-        String label = "Bayonet";
+        String label = bundle.get("game.ui.bayonet");
         if (bayonetCooldown != null && bayonetCooldown.isRunning()) {
-            label += String.format(" (%.1fs)", bayonetCooldown.getRemainingSeconds(tickManager.getCurrentTick()));
+            label += bundle.format("game.ui.bayonet.cooldown",
+                    bayonetCooldown.getRemainingSeconds(tickManager.getCurrentTick()));
         } else {
-            label += " (Hazır)";
+            label += bundle.get("game.ui.bayonet.ready");
         }
         font.draw(batch, label, barX, barY + barHeight + 18);
         font.getData().setScale(1f);
