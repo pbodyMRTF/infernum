@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.utils.I18NBundle;
 
 public class LoadingScreen implements Screen {
     private final Jgame game;
@@ -13,6 +14,12 @@ public class LoadingScreen implements Screen {
     private BitmapFont font;
 
     private float animTimer = 0;
+
+    I18NBundle bundle = I18NBundle.createBundle(
+            Gdx.files.internal("i18n/strings"),
+            new java.util.Locale("tr", "TR"),
+            "UTF-8"
+    );
 
     public LoadingScreen(Jgame game) {
         this.game = game;
@@ -24,7 +31,6 @@ public class LoadingScreen implements Screen {
         shapeRenderer = new ShapeRenderer();
         font = game.font;
 
-        // Asset yüklemeyi başlat
         Assets.load();
     }
 
@@ -32,7 +38,6 @@ public class LoadingScreen implements Screen {
     public void render(float delta) {
         animTimer += delta;
 
-        // Ekranı temizle
         Gdx.gl.glClearColor(0.1f, 0.1f, 0.15f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -40,7 +45,6 @@ public class LoadingScreen implements Screen {
         float w = Gdx.graphics.getWidth();
         float h = Gdx.graphics.getHeight();
 
-        // Progress bar çiz
         float barWidth = 400;
         float barHeight = 30;
         float barX = (w - barWidth) / 2;
@@ -48,11 +52,9 @@ public class LoadingScreen implements Screen {
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Arka plan (gri)
         shapeRenderer.setColor(0.3f, 0.3f, 0.3f, 1);
         shapeRenderer.rect(barX, barY, barWidth, barHeight);
 
-        // Progress (yeşil, animasyonlu)
         float hue = (animTimer * 0.5f) % 1.0f;
         Color progressColor = new Color();
         progressColor.fromHsv(hue * 360, 0.7f, 0.9f);
@@ -61,37 +63,28 @@ public class LoadingScreen implements Screen {
 
         shapeRenderer.end();
 
-        // Metin çiz
         batch.begin();
 
         font.setColor(Color.WHITE);
-        String loadingText = "Loading... " + "%" + (int)(progress * 100);
-        font.draw(batch, loadingText,
+        font.draw(batch, bundle.format("loading.progress", (int)(progress * 100)),
                 w / 2 - 100, barY + barHeight + 50);
 
-        // Alt bilgi
         font.getData().setScale(0.6f);
         font.setColor(0.7f, 0.7f, 0.7f, 1);
-        font.draw(batch, "Texture'lar vs. yükleniyor. Bu ekranı sadece bir defa göreceksiniz \n çünkü bu oyunda bethesda logosu yok...",
+        font.draw(batch, bundle.get("loading.message"),
                 w / 2 - 250, barY - 30);
         font.getData().setScale(1f);
 
         batch.end();
 
-        // Yükleme tamamlandıysa ana menüye geç
         if (Assets.update()) {
             game.setScreen(new MainMenuScreen(game));
         }
     }
 
-    @Override
-    public void resize(int width, int height) {}
-
-    @Override
-    public void pause() {}
-
-    @Override
-    public void resume() {}
+    @Override public void resize(int width, int height) {}
+    @Override public void pause() {}
+    @Override public void resume() {}
 
     @Override
     public void hide() {
