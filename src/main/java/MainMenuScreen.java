@@ -133,7 +133,7 @@ public class MainMenuScreen implements Screen {
 
         font.setColor(0.7f, 0.7f, 0.7f, menuAlpha * 0.6f);
         font.getData().setScale(0.7f);
-        font.draw(batch, bundle.get("menu.version"), 10, 30);
+        font.draw(batch, bundle.format("menu.version", Jgame.Version), 10, 30);
         font.getData().setScale(1f);
 
         batch.end();
