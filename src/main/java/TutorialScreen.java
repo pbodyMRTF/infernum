@@ -1023,7 +1023,7 @@ public class TutorialScreen implements Screen {
             Gdx.app.error("TutorialScreen", "Enemy shader hata: " + enemyShader.getLog());
             enemyShader = null;
         }
-        map = new TmxMapLoader().load("flape.tmx");
+        map = new TmxMapLoader().load("tutorial.tmx");
         groundLayer      = (TiledMapTileLayer) map.getLayers().get(0);
         wallLayer        = (TiledMapTileLayer) map.getLayers().get("dk2");
         lowObstacleLayer = (TiledMapTileLayer) map.getLayers().get("dk3");
