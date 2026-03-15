@@ -130,6 +130,7 @@ public class Player {
     }
 
     private boolean isBlocked(float nextX, float nextY, TiledMapTileLayer wallLayer, TiledMapTileLayer lowObstacleLayer) {
+        if (wallLayer == null) return false;
         float unitScale = 3f;
         float tileW = wallLayer.getTileWidth()  * unitScale;
         float tileH = wallLayer.getTileHeight() * unitScale;
@@ -188,10 +189,12 @@ public class Player {
         if (!isBlocked(x + moveX, y, wallLayer, lowObstacleLayer)) x += moveX;
         if (!isBlocked(x, y + moveY, wallLayer, lowObstacleLayer)) y += moveY;
 
-        float mapWidth  = wallLayer.getWidth()  * wallLayer.getTileWidth()  * 3f;
-        float mapHeight = wallLayer.getHeight() * wallLayer.getTileHeight() * 3f;
-        x = MathUtils.clamp(x, 0, mapWidth  - texture.getWidth());
-        y = MathUtils.clamp(y, 0, mapHeight - texture.getHeight());
+        if (wallLayer != null) {
+            float mapWidth  = wallLayer.getWidth()  * wallLayer.getTileWidth()  * 3f;
+            float mapHeight = wallLayer.getHeight() * wallLayer.getTileHeight() * 3f;
+            x = MathUtils.clamp(x, 0, mapWidth  - texture.getWidth());
+            y = MathUtils.clamp(y, 0, mapHeight - texture.getHeight());
+        }
     }
 
     public boolean isTriggerPressed() {

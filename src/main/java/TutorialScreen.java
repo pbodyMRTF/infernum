@@ -1,7 +1,6 @@
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.controllers.Controllers;
@@ -11,530 +10,639 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.maps.tiled.TiledMap;
+import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
+import com.badlogic.gdx.maps.tiled.TmxMapLoader;
+import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.gdx.utils.Json;
+import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
+/**
+ * TutorialScreen — GameScreen mimarisine yakın remaster.
+ *
+ * Değişiklikler / iyileştirmeler:
+ *  - Player nesnesi artık gerçek Player sınıfı (GameScreen ile aynı).
+ *  - GameTickManager kullanılıyor (delta-time yerine tick tabanlı zamanlama).
+ *  - shootCooldown / hitCooldown / slowdownTimer / deathTimer → TickTimer.
+ *  - Weapons sistemi GameScreen ile tamamen aynı.
+ *  - Damage tablosu artık Weapons.getDamageAgainst() üzerinden çekiliyor.
+ *  - ShaderProgram (red.vsh/red.fsh) düşmanlara uygulanıyor.
+ *  - ExtendViewport / iki kamera (world + UI) sistemi.
+ *  - Hotbar, can göstergesi, bayonet cooldown bar GameScreen'den birebir.
+ *  - Tüm düşmanlar Enemy / Enemy2 / Enemy3 sınıfları üzerinden.
+ *  - BloodParticle ve toz efektleri.
+ *  - Player hasar alabilir, can bitince phase ilerlemez, ekran kararır.
+ *  - Phase geçişleri "SPACE / ENTER / A" ile (waitInput=true) ya da tüm
+ *    düşmanlar ölünce otomatik (killDone mantığı).
+ */
 public class TutorialScreen implements Screen {
 
-    GameConfig config;
+    // ── Sabitler ──────────────────────────────────────────────────────────────
+    private static final float WORLD_WIDTH    = 1024f;
+    private static final float WORLD_HEIGHT   = 768f;
+    private static final float UI_WIDTH       = 1024f;
+    private static final float UI_HEIGHT      = 768f;
+    private static final float BAYONET_RANGE  = 150f;
+    private static final float KILL_DELAY_SEC = 1.0f;
+
+    private static final int GAMEPAD_BUTTON_A            = 0;
+    private static final int GAMEPAD_BUTTON_B            = 1;
+    private static final int GAMEPAD_AXIS_LEFT_X         = 0;
+    private static final int GAMEPAD_AXIS_LEFT_Y         = 1;
+
+    // ── Temel bileşenler ──────────────────────────────────────────────────────
     private final Jgame game;
     private SpriteBatch batch;
-    private ShapeRenderer shapeRenderer;
     private BitmapFont font;
+    private ShapeRenderer shapeRenderer;
+    private GameTickManager tickManager;
+    private ShaderProgram enemyShader;
+    private float shaderTime = 0f;
+
+    // ── Kameralar & viewport ──────────────────────────────────────────────────
     private OrthographicCamera camera;
+    private OrthographicCamera uiCamera;
+    private ExtendViewport viewport;
+    private ExtendViewport uiViewport;
 
-    private Texture playerTex;
-    private Texture gunTex;
-    private Texture shotgunTex;
-    private Texture smgTex;
+    // ── Player ────────────────────────────────────────────────────────────────
+    private Player player;
+
+    // ── Timerlar ──────────────────────────────────────────────────────────────
+    private GameTickManager.TickTimer shootCooldown;
+    private GameTickManager.TickTimer hitCooldown;
+    private GameTickManager.TickTimer slowdownTimer;
+    private GameTickManager.TickTimer deathTimer;
+    private GameTickManager.TickTimer bayonetCooldown;
+    private GameTickManager.TickTimer killDelayTimer;   // öldürme sonrası bekleme
+
+    private static final int SHOOT_COOLDOWN_TICKS   = 16;
+    private static final int HIT_COOLDOWN_TICKS     = 16;
+    private static final int SLOWDOWN_TICKS         = 40;
+    private static final int DEATH_DELAY_TICKS      = 60;
+    private static final int BAYONET_COOLDOWN_TICKS = 60;
+    private static final int KILL_DELAY_TICKS       = 20; // ~1 saniye @ 20 tps
+
+    // ── Objeler ───────────────────────────────────────────────────────────────
+    private Array<Enemy>         enemies  = new Array<>();
+    private Array<Enemy2>        enemies2 = new Array<>();
+    private Array<Enemy3>        enemies3 = new Array<>();
+    private Array<Bullet>        bullets  = new Array<>();
+    private Array<BloodParticle> bloods   = new Array<>();
+    private Array<toz>           tozlar   = new Array<>();
+
+    // ── Textureler ────────────────────────────────────────────────────────────
     private Texture bulletTex;
-    private Texture enemyTex;
-    private Texture enemy2Tex;
-    private Texture enemy3Tex;
-    private Texture bloodTex;
+    private Texture enemyTex, enemy2Tex, enemy3Tex;
+    private Texture bloodTex, tozTex;
+    private Texture heartTex, heartEmptyTex, regenHeartTex;
     private Texture bayonetTex;
-    private Texture heartTex;
-    private Texture heartEmptyTex;
+    private Texture Hotbar1, Hotbar2, Hotbar3;
 
-    private Sound shootSound;
-    private Sound shotgunSound;
-    private Sound smgSound;
-    private Sound sliceSound;
-    private Sound popSound;
-    private Sound splatSound;
-    private Sound tinSound;
-    private float playerX, playerY;
-    private float playerScale = 1f;
+    // ── Sesler ────────────────────────────────────────────────────────────────
+    private Sound shootSound, ShotgunSound, SmgSound;
+    private Sound popSound, woodSound, sliceSound, tinSound, splatSound;
 
-    private int activeWeapon = 0;
-    private float shootCooldown = 0f;
-
+    // ── Bayonet animasyon ─────────────────────────────────────────────────────
     private boolean showBayonetAnim = false;
-    private float bayonetAnimTime = 0f;
-    private float bayonetCooldown = 0f;
-    private static final float BAYONET_COOLDOWN = 3f;
-    private static final float BAYONET_RANGE = 150f;
+    private float   bayonetAnimTime = 0f;
 
-    private Array<TEnemy> enemies = new Array<>();
-    private Array<TBullet> bullets = new Array<>();
-    private Array<TBlood> bloods = new Array<>();
+    // ── Tutorial faz yönetimi ─────────────────────────────────────────────────
+    private int     phase         = 0;
+    private float   phaseTime     = 0f;    // blink efekti için
+    private boolean waitInput     = true;
+    private boolean killDone      = false;
+    private boolean deathTimerStarted = false;
+    private boolean isSlowed      = false;
 
-    private int phase = 0;
-    private float phaseTime = 0f;
-    private boolean waitInput = false;
+    // Gamepad önceki state
+    private boolean prevButtonA = false;
+    private boolean prevButtonB = false;
+    // map
+    private TiledMap map;
+    private OrthogonalTiledMapRenderer mapRenderer;
+    private TiledMapTileLayer groundLayer;
+    private TiledMapTileLayer wallLayer;
+    private TiledMapTileLayer lowObstacleLayer;
+    private ShaderProgram mapShader;
 
-    private boolean killDone = false;
-    private float killDelay = 0f;
-    private static final float KILL_DELAY = 1.0f;
-
-    private static final int GAMEPAD_BUTTON_A              = 0;
-    private static final int GAMEPAD_BUTTON_B              = 1;
-    private static final int GAMEPAD_BUTTON_RIGHT_BUMPER   = 5;
-    private static final int GAMEPAD_AXIS_LEFT_X           = 0;
-    private static final int GAMEPAD_AXIS_LEFT_Y           = 1;
-    private static final int GAMEPAD_AXIS_RIGHT_X          = 2;
-    private static final int GAMEPAD_AXIS_RIGHT_Y          = 3;
-    private static final float DEADZONE                    = 0.2f;
-
-    private boolean prevButtonA          = false;
-    private boolean prevButtonB          = false;
-    private boolean prevRightBumper      = false;
-
-    private float gamepadAimAngle = 0f;
+    // ─────────────────────────────────────────────────────────────────────────
 
     public TutorialScreen(final Jgame game) {
         this.game = game;
-        batch = new SpriteBatch();
+
+        batch         = new SpriteBatch();
+        font          = game.font;
         shapeRenderer = new ShapeRenderer();
-        font = game.font;
 
-        camera = new OrthographicCamera();
-        camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        // Kameralar
+        camera   = new OrthographicCamera();
+        viewport = new ExtendViewport(WORLD_WIDTH, WORLD_HEIGHT, camera);
 
-        loadConfig();
-        loadTextures();
-        loadSounds();
+        uiCamera   = new OrthographicCamera();
+        uiViewport = new ExtendViewport(UI_WIDTH, UI_HEIGHT, uiCamera);
+        uiCamera.position.set(UI_WIDTH / 2f, UI_HEIGHT / 2f, 0);
+        uiCamera.update();
 
-        playerX = Gdx.graphics.getWidth()  / 2f - (playerTex.getWidth() * playerScale) / 2f;
-        playerY = Gdx.graphics.getHeight() / 2f - (playerTex.getHeight() * playerScale) / 2f;
+        // Tick sistemi
+        tickManager = new GameTickManager();
+        tickManager.addListener(new GameTickManager.TickListener() {
+            @Override
+            public void onTick(int currentTick) {
+                handleTick(currentTick);
+            }
+        });
+
+        // Timerlar
+        shootCooldown  = new GameTickManager.TickTimer(SHOOT_COOLDOWN_TICKS);
+        hitCooldown    = new GameTickManager.TickTimer(HIT_COOLDOWN_TICKS);
+        slowdownTimer  = new GameTickManager.TickTimer(SLOWDOWN_TICKS);
+        deathTimer     = new GameTickManager.TickTimer(DEATH_DELAY_TICKS);
+        bayonetCooldown = new GameTickManager.TickTimer(BAYONET_COOLDOWN_TICKS);
+        killDelayTimer = new GameTickManager.TickTimer(KILL_DELAY_TICKS);
+
+        loadAssets();
+        spawnPlayer();
     }
 
-    private Controller getGamepad() {
-        if (Controllers.getControllers().size > 0) {
-            return Controllers.getControllers().first();
-        }
-        return null;
-    }
+    // ── Asset yükleme ─────────────────────────────────────────────────────────
 
-    private boolean gamepadJustPressed(Controller c, int button, boolean prevState) {
-        return c != null && c.getButton(button) && !prevState;
-    }
+    private void loadAssets() {
+        shootSound   = Assets.getSound(Assets.Sounds.SHOOT);
+        ShotgunSound = Assets.getSound(Assets.Sounds.SHOTGUNSHOT);
+        SmgSound     = Assets.getSound(Assets.Sounds.SMGSHOT);
+        popSound     = Assets.getSound(Assets.Sounds.POP);
+        woodSound    = Assets.getSound(Assets.Sounds.WOOD);
+        sliceSound   = Assets.getSound(Assets.Sounds.SLICE);
+        tinSound     = Assets.getSound(Assets.Sounds.TIN);
+        splatSound   = Assets.getSound(Assets.Sounds.SPLAT);
 
-    private void loadConfig() {
-        Json json = new Json();
-        config = json.fromJson(GameConfig.class, Gdx.files.internal("config.json"));
-    }
-
-    private void loadTextures() {
-        playerTex     = Assets.getTexture(Assets.Textures.PLAYER);
-        gunTex        = Assets.getTexture(Assets.Textures.GUN);
-        shotgunTex    = Assets.getTexture(Assets.Textures.SHOTGUN);
-        smgTex        = Assets.getTexture(Assets.Textures.SMG);
         bulletTex     = Assets.getTexture(Assets.Textures.BULLET);
         enemyTex      = Assets.getTexture(Assets.Textures.ENEMY);
         enemy2Tex     = Assets.getTexture(Assets.Textures.ENEMY2);
         enemy3Tex     = Assets.getTexture(Assets.Textures.ENEMY3);
         bloodTex      = Assets.getTexture(Assets.Textures.BLOOD);
-        bayonetTex    = Assets.getTexture(Assets.Textures.BAYONET);
+        tozTex        = Assets.getTexture(Assets.Textures.TOZ);
         heartTex      = Assets.getTexture(Assets.Textures.HEART);
         heartEmptyTex = Assets.getTexture(Assets.Textures.HEART_EMPTY);
+        regenHeartTex = Assets.getTexture(Assets.Textures.REGEN_KALP);
+        bayonetTex    = Assets.getTexture(Assets.Textures.BAYONET);
+
+        Hotbar1 = Assets.getTexture(Assets.Textures.HOTBAR1);
+        Hotbar2 = Assets.getTexture(Assets.Textures.HOTBAR2);
+        Hotbar3 = Assets.getTexture(Assets.Textures.HOTBAR3);
     }
 
-    private void loadSounds() {
-        shootSound   = Assets.getSound(Assets.Sounds.SHOOT);
-        shotgunSound = Assets.getSound(Assets.Sounds.SHOTGUNSHOT);
-        smgSound     = Assets.getSound(Assets.Sounds.SMGSHOT);
-        sliceSound   = Assets.getSound(Assets.Sounds.SLICE);
-        popSound     = Assets.getSound(Assets.Sounds.POP);
-        splatSound   = Assets.getSound(Assets.Sounds.SPLAT);
-        tinSound     = Assets.getSound(Assets.Sounds.TIN);
+    // ── Player oluşturma ──────────────────────────────────────────────────────
+
+    private void spawnPlayer() {
+        // Tutorial için ekranın ortası — harita yoksa sabit koordinat
+        float cx = WORLD_WIDTH  / 2f - 256f;
+        float cy = WORLD_HEIGHT / 2f - 32f;
+
+        Texture playerTex = Assets.getTexture(Assets.Textures.PLAYER);
+        player = new Player(cx, cy, playerTex, 0);
+        player.setHitCooldown(hitCooldown);
+        player.setBayonetCooldown(bayonetCooldown);
+        player.setWeapon(new Weapons(Weapons.WeaponType.PISTOL));
+
+        player.setBayonetCallback(new Player.BayonetCallback() {
+            @Override
+            public int onBayonetUse() {
+                return useBayonet();
+            }
+        });
     }
 
+    // ── Tick işleyici ─────────────────────────────────────────────────────────
 
-
-    private void clearScene() {
-        enemies.clear();
-        bullets.clear();
-        bloods.clear();
-        killDone        = false;
-        killDelay       = 0f;
-        shootCooldown   = 0f;
-        bayonetCooldown = 0f;
-        showBayonetAnim = false;
+    private void handleTick(int currentTick) {
+        checkTimers(currentTick);
     }
+
+    private void checkTimers(int currentTick) {
+        // Ölüm → menüye dön
+        if (deathTimer.isRunning() && deathTimer.isFinished(currentTick)) {
+            game.setScreen(new MainMenuScreen(game));
+            return;
+        }
+
+        // Yavaşlama bitti
+        if (slowdownTimer.isRunning() && slowdownTimer.isFinished(currentTick)) {
+            player.resetSpeed();
+            isSlowed = false;
+            slowdownTimer.stop();
+        }
+
+        // Silah değişince shoot cooldown sıfırla
+        if (player.isWeaponJustChanged()) shootCooldown.stop();
+
+        if (shootCooldown.isRunning()   && shootCooldown.isFinished(currentTick))   shootCooldown.stop();
+        if (hitCooldown.isRunning()     && hitCooldown.isFinished(currentTick))     hitCooldown.stop();
+        if (bayonetCooldown.isRunning() && bayonetCooldown.isFinished(currentTick)) bayonetCooldown.stop();
+
+        // Kill-delay bitti → sonraki faz
+        if (killDelayTimer.isRunning() && killDelayTimer.isFinished(currentTick)) {
+            killDelayTimer.stop();
+            killDone = false;
+            advancePhase();
+        }
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
 
     @Override
     public void render(float delta) {
-        float w = Gdx.graphics.getWidth();
-        float h = Gdx.graphics.getHeight();
+        tickManager.update(delta);
+        shaderTime += delta;
+        phaseTime  += delta;
 
-        phaseTime += delta;
-        shootCooldown -= delta;
-        if (shootCooldown < 0f) shootCooldown = 0f;
-        bayonetCooldown -= delta;
-        if (bayonetCooldown < 0f) bayonetCooldown = 0f;
+        if (Gdx.input.isKeyPressed(Input.Keys.Q)) Gdx.app.exit();
 
-        updateGamepadAim();
-        handleMovement(delta);
+        Controller c = getGamepad();
+        boolean back = Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)
+                || gamepadJustPressed(c, GAMEPAD_BUTTON_B, prevButtonB);
+        if (back) {
+            game.setScreen(new MainMenuScreen(game));
+            return;
+        }
+
+        // Güncelleme
+        updatePlayer(delta);
         handleShooting();
-        handleBayonet();
         updateBullets(delta);
         updateEnemies(delta);
-        updateBloods(delta);
+        handleCollisions();
         updateBayonetAnim(delta);
-        handlePhaseLogic(delta);
-        handleInput();
+        updateBloodParticles(delta);
+        updateToz(delta);
+        cleanupDeadObjects();
+        handlePhaseLogic();
+        handleTutorialInput();
 
-        Gdx.gl.glClearColor(0.06f, 0.06f, 0.09f, 1f);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
+        // Kamera: player'ı ortala, dünya sınırlarına kilitle
+        camera.position.set(player.getCenterX(), player.getCenterY(), 0);
+        float halfW = viewport.getWorldWidth()  / 2f;
+        float halfH = viewport.getWorldHeight() / 2f;
+        camera.position.x = MathUtils.clamp(camera.position.x, halfW, WORLD_WIDTH  * 3f - halfW);
+        camera.position.y = MathUtils.clamp(camera.position.y, halfH, WORLD_HEIGHT * 3f - halfH);
         camera.update();
-        batch.setProjectionMatrix(camera.combined);
 
-        shapeRenderer.setProjectionMatrix(camera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        drawHealthBars();
-        shapeRenderer.end();
+        renderGame();
 
-        batch.begin();
-        drawBloods();
-        drawEnemies();
-        drawBullets();
-        drawPlayer();
-        drawGun();
-        drawBayonetAnim();
-        drawUI(w, h);
-        batch.end();
-
-        updateGamepadButtonStates();
-    }
-
-    private void updateGamepadAim() {
-        Controller c = getGamepad();
-        if (c == null) return;
-
-        float aimX = c.getAxis(GAMEPAD_AXIS_RIGHT_X);
-        float aimY = c.getAxis(GAMEPAD_AXIS_RIGHT_Y);
-        if (Math.abs(aimX) > DEADZONE || Math.abs(aimY) > DEADZONE) {
-            gamepadAimAngle = (float) Math.toDegrees(Math.atan2(-aimY, aimX));
-        }
-    }
-
-    private void updateGamepadButtonStates() {
-        Controller c = getGamepad();
+        // Gamepad state güncelle
         if (c != null) {
-            prevButtonA     = c.getButton(GAMEPAD_BUTTON_A);
-            prevButtonB     = c.getButton(GAMEPAD_BUTTON_B);
-            prevRightBumper = c.getButton(GAMEPAD_BUTTON_RIGHT_BUMPER);
+            prevButtonA = c.getButton(GAMEPAD_BUTTON_A);
+            prevButtonB = c.getButton(GAMEPAD_BUTTON_B);
         } else {
-            prevButtonA = prevButtonB = prevRightBumper = false;
+            prevButtonA = prevButtonB = false;
         }
     }
 
-    private void handleMovement(float delta) {
-        float speed = 350f;
-        float mx = 0, my = 0;
+    // ── Güncelleme metodları ──────────────────────────────────────────────────
 
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) my +=  speed * delta;
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) my -=  speed * delta;
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) mx -=  speed * delta;
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) mx +=  speed * delta;
+    /** Tutorial'da harita yok, basit sınır çarpışması kullanılıyor. */
+    private void updatePlayer(float delta) {
+        player.update(delta, wallLayer, lowObstacleLayer);
 
-        Controller c = getGamepad();
-        if (c != null) {
-            float axisX = c.getAxis(GAMEPAD_AXIS_LEFT_X);
-            float axisY = c.getAxis(GAMEPAD_AXIS_LEFT_Y);
-            if (Math.abs(axisX) > DEADZONE) mx += axisX * speed * delta;
-            if (Math.abs(axisY) > DEADZONE) my -= axisY * speed * delta;
-        }
-
-        playerX += mx;
-        playerY += my;
-
-        float w = Gdx.graphics.getWidth();
-        float h = Gdx.graphics.getHeight();
-        float scaledWidth  = playerTex.getWidth()  * playerScale;
-        float scaledHeight = playerTex.getHeight() * playerScale;
-        playerX = MathUtils.clamp(playerX, 0, w - scaledWidth);
-        playerY = MathUtils.clamp(playerY, 0, h - scaledHeight);
+        // Ekran sınırlarını uygula (harita yerine world alanı)
+        float minX = 0f, maxX = WORLD_WIDTH  - player.getTexture().getWidth();
+        float minY = 0f, maxY = WORLD_HEIGHT - player.getTexture().getHeight();
+        player.x = MathUtils.clamp(player.x, minX, maxX);
+        player.y = MathUtils.clamp(player.y, minY, maxY);
     }
 
     private void handleShooting() {
-        if (phase != 3 && phase != 6 && phase != 9) return;
-        if (killDone) return;
-        if (shootCooldown > 0f) return;
+        if (player.dead) return;
+        Weapons w = player.getWeapon();
+        if (w == null) return;
 
-        boolean isAuto;
-        int count;
-        float spread;
-        int damage;
-        float rate;
-        Sound sound;
+        // Sadece ateş fazlarında
+        if (!isShootingPhase()) return;
 
-        switch (activeWeapon) {
-            case 1:
-                isAuto = false;
-                count  = 4;
-                spread = 15f;
-                damage = 15;
-                rate   = 0.45f;
-                sound  = shotgunSound;
-                break;
-            case 2:
-                isAuto = true;
-                count  = 1;
-                spread = 0.07f;
-                damage = 15;
-                rate   = 0.08f;
-                sound  = smgSound;
-                break;
-            default:
-                isAuto = false;
-                count  = 1;
-                spread = 0f;
-                damage = 8;
-                rate   = 0.20f;
-                sound  = shootSound;
-                break;
-        }
-
-        Controller c = getGamepad();
-        boolean fired;
-        if (isAuto) {
-            fired = Gdx.input.isButtonPressed(Input.Buttons.LEFT)
-                    || (c != null && c.getButton(5));
+        boolean triggerNow = player.isTriggerPressed();
+        boolean shootInput;
+        if (w.isAutomatic()) {
+            shootInput = Gdx.input.isButtonPressed(Input.Buttons.LEFT) || triggerNow;
         } else {
-            fired = Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
-                    || gamepadJustPressed(c, 5, prevRightBumper);
+            shootInput = Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
+                    || (triggerNow && !player.prevTriggerFired);
         }
+        player.prevTriggerFired = triggerNow;
 
-        if (!fired) return;
+        if (shootInput && !shootCooldown.isRunning()) {
+            float baseAngle = player.getAngleToMouse(camera);
 
-        sound.play(0.7f);
-
-        float px = getPlayerCenterX();
-        float py = getPlayerCenterY();
-        float baseAngle = getAimAngle();
-
-        for (int i = 0; i < count; i++) {
-            float spreadAngle = (count > 1) ? MathUtils.random(-spread, spread) : 0f;
-            float finalAngle  = baseAngle + spreadAngle;
-            float rad         = (float) Math.toRadians(finalAngle);
-            bullets.add(new TBullet(px, py, (float) Math.cos(rad), (float) Math.sin(rad), damage));
-        }
-
-        shootCooldown = rate;
-    }
-
-    private void handleBayonet() {
-        if (phase != 12) return;
-        if (killDone) return;
-        if (bayonetCooldown > 0f) return;
-
-        Controller c = getGamepad();
-        boolean bayonetTriggered = Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)
-                || gamepadJustPressed(c, GAMEPAD_BUTTON_RIGHT_BUMPER, prevRightBumper);
-
-        if (!bayonetTriggered) return;
-
-        sliceSound.play(1.2f);
-
-        showBayonetAnim = true;
-        bayonetAnimTime = 0f;
-        bayonetCooldown = BAYONET_COOLDOWN;
-
-        float px = getPlayerCenterX();
-        float py = getPlayerCenterY();
-
-        for (TEnemy e : enemies) {
-            if (e.hp <= 0) continue;
-            float dist = Vector2.dst(e.x + 32, e.y + 32, px, py);
-            if (dist < BAYONET_RANGE) {
-                e.hp = 0;
-                spawnBlood(e.x + 32, e.y + 32, 8);
-                popSound.play(1f);
+            Bullet.BulletType bulletType;
+            switch (w.getType()) {
+                case SHOTGUN:
+                    ShotgunSound.play(0.7f);
+                    bulletType = Bullet.BulletType.AMMO;
+                    break;
+                case SMG:
+                    SmgSound.play(0.7f);
+                    bulletType = Bullet.BulletType.AMMO_SMG;
+                    break;
+                default:
+                    shootSound.play(0.7f);
+                    bulletType = Bullet.BulletType.AMMO_PISTOL;
+                    break;
             }
-        }
 
-        if (allDead()) {
-            killDone  = true;
-            killDelay = KILL_DELAY;
-        }
-    }
-
-    private float getAimAngle() {
-        Controller c = getGamepad();
-        if (c != null) {
-            float aimX = c.getAxis(GAMEPAD_AXIS_RIGHT_X);
-            float aimY = c.getAxis(GAMEPAD_AXIS_RIGHT_Y);
-            if (Math.abs(aimX) > DEADZONE || Math.abs(aimY) > DEADZONE) {
-                return gamepadAimAngle;
+            for (int i = 0; i < w.getBulletCount(); i++) {
+                float spread = MathUtils.random(-w.getBulletSpread(), w.getBulletSpread());
+                bullets.add(new Bullet(
+                        player.getCenterX(), player.getCenterY(),
+                        baseAngle + spread, bulletType
+                ));
             }
-        }
 
-        float px = getPlayerCenterX();
-        float py = getPlayerCenterY();
-        Vector3 mouseWorld = camera.unproject(new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0));
-        return (float) Math.toDegrees(Math.atan2(mouseWorld.y - py, mouseWorld.x - px));
+            shootCooldown = new GameTickManager.TickTimer(w.getFireRateTicks());
+            shootCooldown.start(tickManager.getCurrentTick());
+        }
     }
 
-    private void updateBayonetAnim(float delta) {
-        if (!showBayonetAnim) return;
-        bayonetAnimTime += delta;
-        if (bayonetAnimTime >= 0.3f) showBayonetAnim = false;
+    private boolean isShootingPhase() {
+        // Tutorial fazlarında yalnızca "aktif savaş" fazlarında ateş edilebilir
+        return phase == 3 || phase == 6 || phase == 9 || phase == 12;
     }
 
     private void updateBullets(float delta) {
-        float spd = 650f;
-        for (int i = bullets.size - 1; i >= 0; i--) {
-            TBullet b = bullets.get(i);
-            b.x += b.dx * spd * delta;
-            b.y += b.dy * spd * delta;
+        for (Bullet b : bullets) b.update(delta, wallLayer, WORLD_WIDTH * 3f, WORLD_HEIGHT * 3f);
+    }
 
-            if (b.x < -30 || b.x > Gdx.graphics.getWidth()  + 30 ||
-                    b.y < -30 || b.y > Gdx.graphics.getHeight() + 30) {
-                bullets.removeIndex(i);
-                continue;
+    private void updateEnemies(float delta) {
+        for (Enemy  e : enemies)  e.update(delta, player.x, player.y);
+        for (Enemy2 e : enemies2) e.update(delta, player.x, player.y);
+        for (Enemy3 e : enemies3) e.update(delta, player.x, player.y);
+    }
+
+    private void updateBloodParticles(float delta) {
+        for (BloodParticle b : bloods) b.update(delta);
+    }
+
+    private void updateToz(float delta) {
+        for (toz t : tozlar) t.update(delta);
+    }
+
+    private void updateBayonetAnim(float delta) {
+        if (showBayonetAnim) {
+            bayonetAnimTime += delta;
+            if (bayonetAnimTime >= 0.3f) showBayonetAnim = false;
+        }
+    }
+
+    // ── Çarpışma ──────────────────────────────────────────────────────────────
+
+    private void handleCollisions() {
+        handleBulletEnemyCollision();
+        handlePlayerEnemyCollision();
+        handlePlayerBloodCollision();
+        checkAllDeadForPhase();
+    }
+
+    private void handleBulletEnemyCollision() {
+        for (Enemy e : enemies) {
+            for (Bullet b : bullets) {
+                if (!e.dead && checkBulletHit(e.x, e.y, b.x, b.y)) {
+                    int dmg = bulletDamageForEnemy1(b.getBulletType());
+                    e.hp -= dmg;
+                    if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
+                    b.dead = true;
+                }
             }
-
-            for (TEnemy e : enemies) {
-                if (e.hp <= 0) continue;
-                if (Vector2.dst(b.x, b.y, e.x + 32, e.y + 32) < 36f) {
-                    e.hp -= b.damage;
-                    bullets.removeIndex(i);
-                    if (e.hp <= 0) {
-                        spawnBlood(e.x + 32, e.y + 32, 8);
-                        popSound.play(0.7f);
-                        if (allDead()) {
-                            killDone  = true;
-                            killDelay = KILL_DELAY;
-                        }
-                    }
-                    break;
+        }
+        for (Enemy2 e : enemies2) {
+            for (Bullet b : bullets) {
+                if (!e.dead && checkBulletHit(e.x, e.y, b.x, b.y)) {
+                    int dmg = bulletDamageForEnemy2(b.getBulletType());
+                    e.hp -= dmg;
+                    if (e.hp <= 0) { createTozEffect(e.x, e.y); createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
+                    b.dead = true;
+                }
+            }
+        }
+        for (Enemy3 e : enemies3) {
+            for (Bullet b : bullets) {
+                if (!e.dead && checkBulletHit(e.x, e.y, b.x, b.y)) {
+                    float dmg = bulletDamageForEnemy3(b.getBulletType());
+                    e.hp -= dmg;
+                    if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
+                    b.dead = true;
                 }
             }
         }
     }
 
-    private void updateEnemies(float delta) {
-        float px = getPlayerCenterX();
-        float py = getPlayerCenterY();
+    private int   bulletDamageForEnemy1(Bullet.BulletType t) { switch(t) { case AMMO_SMG: splatSound.play(); return 15; case AMMO_PISTOL: tinSound.play(1f); return 3; default: tinSound.play(1f); return 1; } }
+    private int   bulletDamageForEnemy2(Bullet.BulletType t) { switch(t) { case AMMO: splatSound.play(); return 15; case AMMO_SMG: tinSound.play(1f); popSound.play(0.2f); return 1; default: tinSound.play(1f); popSound.play(0.2f); return 5; } }
+    private float bulletDamageForEnemy3(Bullet.BulletType t) { switch(t) { case AMMO_PISTOL: splatSound.play(); return 8f; case AMMO_SMG: tinSound.play(1f); return 0.5f; default: tinSound.play(1f); return 0.3f; } }
 
-        for (TEnemy e : enemies) {
-            if (e.hp <= 0) continue;
-            float dx  = px - (e.x + 32);
-            float dy  = py - (e.y + 32);
-            float len = (float) Math.sqrt(dx * dx + dy * dy);
-            if (len == 0) continue;
-            dx /= len;
-            dy /= len;
+    private boolean checkBulletHit(float ex, float ey, float bx, float by) {
+        return Vector2.dst(ex + 32, ey + 32, bx + 4, by + 4) < 36f;
+    }
 
-            float spd;
-            switch (e.type) {
-                case 3:  spd = 110f; break;
-                case 2:  spd =  65f; break;
-                default: spd =  75f; break;
+    private void handlePlayerEnemyCollision() {
+        if (player.dead || hitCooldown.isRunning()) return;
+        for (Enemy  e : enemies)  { if (checkPlayerHit(e.x, e.y)) { playerTakeDamage(); return; } }
+        for (Enemy2 e : enemies2) { if (checkPlayerHit(e.x, e.y)) { playerTakeDamage(); return; } }
+        for (Enemy3 e : enemies3) { if (checkPlayerHit(e.x, e.y)) { playerTakeDamage(); return; } }
+    }
+
+    private boolean checkPlayerHit(float ex, float ey) {
+        return Vector2.dst(ex + 32, ey + 32, player.getCenterX(), player.getCenterY()) < 64f;
+    }
+
+    private void playerTakeDamage() {
+        for (int i = 0; i < 50; i++)
+            bloods.add(new BloodParticle(player.x + 32, player.y + 32, bloodTex));
+        player.damage(1);
+        woodSound.play(0.9f);
+        hitCooldown.start(tickManager.getCurrentTick());
+
+        if (player.dead && !deathTimerStarted) {
+            deathTimerStarted = true;
+            deathTimer.start(tickManager.getCurrentTick());
+        }
+    }
+
+    private void handlePlayerBloodCollision() {
+        if (player.dead || hitCooldown.isRunning()) return;
+        for (BloodParticle b : bloods) {
+            if (b.dead) continue;
+            float dist = Vector2.dst(b.x + 4, b.y + 4, player.getCenterX(), player.getCenterY());
+            if (dist < 36f) {
+                isSlowed = true;
+                slowdownTimer.start(tickManager.getCurrentTick());
+                player.slowDown(300);
+                b.dead = true;
+                popSound.play(0.3f);
             }
-            e.x += dx * spd * delta;
-            e.y += dy * spd * delta;
         }
     }
 
-    private void updateBloods(float delta) {
-        for (int i = bloods.size - 1; i >= 0; i--) {
-            TBlood b = bloods.get(i);
-            b.life -= delta * 1.4f;
-            b.x    += b.vx * delta;
-            b.y    += b.vy * delta;
-            b.vy   -= 90f * delta;
-            if (b.life <= 0f) bloods.removeIndex(i);
+    /** Tüm düşmanlar öldü mü? (aktif savaş fazında) */
+    private void checkAllDeadForPhase() {
+        if (!isShootingPhase() || killDone) return;
+        if (enemies.size == 0 && enemies2.size == 0 && enemies3.size == 0) return;
+
+        boolean allDead = true;
+        for (Enemy  e : enemies)  if (!e.dead)  { allDead = false; break; }
+        if (allDead) for (Enemy2 e : enemies2) if (!e.dead) { allDead = false; break; }
+        if (allDead) for (Enemy3 e : enemies3) if (!e.dead) { allDead = false; break; }
+
+        if (allDead) {
+            killDone = true;
+            killDelayTimer.start(tickManager.getCurrentTick());
         }
     }
 
-    private boolean allDead() {
-        if (enemies.size == 0) return false;
-        for (TEnemy e : enemies) if (e.hp > 0) return false;
-        return true;
+    // ── Bayonet ───────────────────────────────────────────────────────────────
+
+    private int useBayonet() {
+        int killedCount = 0;
+        sliceSound.play(1.2f);
+        showBayonetAnim = true;
+        bayonetAnimTime = 0f;
+        bayonetCooldown.start(tickManager.getCurrentTick());
+
+        for (Enemy e : enemies) {
+            if (!e.dead && isInBayonetRange(e.x, e.y)) {
+                e.dead = true; createBloodEffect(e.x, e.y); popSound.play(1f); killedCount++;
+            }
+        }
+        for (Enemy2 e : enemies2) {
+            if (!e.dead && isInBayonetRange(e.x, e.y)) {
+                e.dead = true; createBloodEffect(e.x, e.y); popSound.play(1f); killedCount++;
+            }
+        }
+        for (Enemy3 e : enemies3) {
+            if (!e.dead && isInBayonetRange(e.x, e.y)) {
+                e.dead = true; createBloodEffect(e.x, e.y); popSound.play(1f); killedCount++;
+            }
+        }
+        return killedCount;
     }
 
-    private void handlePhaseLogic(float delta) {
-        if (killDone) {
-            killDelay -= delta;
-            if (killDelay <= 0f) advancePhase();
-            return;
-        }
+    private boolean isInBayonetRange(float ex, float ey) {
+        return Vector2.dst(ex + 32, ey + 32, player.getCenterX(), player.getCenterY()) < BAYONET_RANGE;
+    }
+
+    // ── Efektler ──────────────────────────────────────────────────────────────
+
+    private void createBloodEffect(float x, float y) {
+        for (int i = 0; i < 8; i++) bloods.add(new BloodParticle(x + 32, y + 32, bloodTex));
+    }
+
+    private void createTozEffect(float x, float y) {
+        for (int i = 0; i < 8; i++) tozlar.add(new toz(x + 32, y + 32, tozTex));
+    }
+
+    // ── Tutorial faz mantığı ─────────────────────────────────────────────────
+
+    private void handlePhaseLogic() {
+        if (killDone) return; // killDelayTimer bekliyor
 
         switch (phase) {
+            // ── Bilgi ekranları (waitInput = true) ──
             case 0:
             case 1:
                 waitInput = true;
                 break;
 
+            // ── Tip 1 tanıtım + düşman spawn ──
             case 2:
                 waitInput = true;
-                if (enemies.size == 0) {
-                    activeWeapon = 2;
-                    spawnEnemy(1, Gdx.graphics.getWidth() / 2f + 150, Gdx.graphics.getHeight() / 2f + 160);
+                if (enemies.isEmpty() && enemies2.isEmpty() && enemies3.isEmpty()) {
+                    player.setWeapon(new Weapons(Weapons.WeaponType.SMG));
+                    spawnEnemy1At(WORLD_WIDTH / 2f + 150, WORLD_HEIGHT / 2f + 160);
                 }
                 break;
-            case 3:
+            case 3: // Savaş
                 waitInput = false;
-                if (enemies.size == 0)
-                    spawnEnemy(1, Gdx.graphics.getWidth() / 2f + 150, Gdx.graphics.getHeight() / 2f + 160);
+                if (enemies.isEmpty()) spawnEnemy1At(WORLD_WIDTH / 2f + 150, WORLD_HEIGHT / 2f + 160);
                 break;
             case 4:
                 waitInput = true;
-                clearScene();
+                clearEnemiesAndEffects();
                 break;
 
+            // ── Tip 2 tanıtım ──
             case 5:
                 waitInput = true;
-                if (enemies.size == 0) {
-                    activeWeapon = 1;
-                    spawnEnemy(2, Gdx.graphics.getWidth() / 2f + 150, Gdx.graphics.getHeight() / 2f + 160);
+                if (enemies.isEmpty() && enemies2.isEmpty()) {
+                    player.setWeapon(new Weapons(Weapons.WeaponType.SHOTGUN));
+                    spawnEnemy2At(WORLD_WIDTH / 2f + 150, WORLD_HEIGHT / 2f + 160);
                 }
                 break;
             case 6:
                 waitInput = false;
-                if (enemies.size == 0)
-                    spawnEnemy(2, Gdx.graphics.getWidth() / 2f + 150, Gdx.graphics.getHeight() / 2f + 160);
+                if (enemies2.isEmpty()) spawnEnemy2At(WORLD_WIDTH / 2f + 150, WORLD_HEIGHT / 2f + 160);
                 break;
             case 7:
                 waitInput = true;
-                clearScene();
+                clearEnemiesAndEffects();
                 break;
 
+            // ── Tip 3 tanıtım ──
             case 8:
                 waitInput = true;
-                if (enemies.size == 0) {
-                    activeWeapon = 0;
-                    spawnEnemy(3, Gdx.graphics.getWidth() / 2f + 150, Gdx.graphics.getHeight() / 2f + 160);
+                if (enemies3.isEmpty()) {
+                    player.setWeapon(new Weapons(Weapons.WeaponType.PISTOL));
+                    spawnEnemy3At(WORLD_WIDTH / 2f + 150, WORLD_HEIGHT / 2f + 160);
                 }
                 break;
             case 9:
                 waitInput = false;
-                if (enemies.size == 0)
-                    spawnEnemy(3, Gdx.graphics.getWidth() / 2f + 150, Gdx.graphics.getHeight() / 2f + 160);
+                if (enemies3.isEmpty()) spawnEnemy3At(WORLD_WIDTH / 2f + 150, WORLD_HEIGHT / 2f + 160);
                 break;
             case 10:
                 waitInput = true;
-                clearScene();
+                clearEnemiesAndEffects();
                 break;
 
+            // ── Bayonet tanıtım ──
             case 11:
                 waitInput = true;
-                clearScene();
+                clearEnemiesAndEffects();
                 break;
-
-            case 12:
+            case 12: // Bayonet savaşı (3 düşman aynı anda)
                 waitInput = false;
-                if (enemies.size == 0) {
-                    float cx = Gdx.graphics.getWidth()  / 2f;
-                    float cy = Gdx.graphics.getHeight() / 2f;
-                    spawnEnemy(1, cx - 140, cy + 180);
-                    spawnEnemy(2, cx,        cy + 200);
-                    spawnEnemy(3, cx + 140,  cy + 180);
+                if (enemies.isEmpty() && enemies2.isEmpty() && enemies3.isEmpty() && !killDone) {
+                    float cx = WORLD_WIDTH  / 2f;
+                    float cy = WORLD_HEIGHT / 2f;
+                    spawnEnemy1At(cx - 140, cy + 180);
+                    spawnEnemy2At(cx,        cy + 200);
+                    spawnEnemy3At(cx + 140,  cy + 180);
                 }
                 break;
 
+            // ── Özet ──
             case 13:
                 waitInput = true;
-                clearScene();
+                clearEnemiesAndEffects();
                 break;
+        }
+    }
+
+    private void handleTutorialInput() {
+        if (player.dead) return;
+
+        Controller c = getGamepad();
+        boolean confirm = Gdx.input.isKeyJustPressed(Input.Keys.SPACE)
+                || Gdx.input.isKeyJustPressed(Input.Keys.ENTER)
+                || gamepadJustPressed(c, GAMEPAD_BUTTON_A, prevButtonA);
+
+        if (waitInput && confirm && !killDone) {
+            clearEnemiesAndEffects();
+            advancePhase();
         }
     }
 
@@ -543,218 +651,267 @@ public class TutorialScreen implements Screen {
         phaseTime = 0f;
         waitInput = false;
         killDone  = false;
-        killDelay = 0f;
 
         if (phase > 13) {
-            game.setScreen(new MainMenuScreen(game)); // Eğitim bitti → ana menü
-        }
-    }
-
-    private void handleInput() {
-        Controller c = getGamepad();
-
-        if (Gdx.input.isKeyPressed(Input.Keys.Q)) Gdx.app.exit();
-
-        boolean back = Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)
-                || gamepadJustPressed(c, GAMEPAD_BUTTON_B, prevButtonB);
-
-        if (back) {
             game.setScreen(new MainMenuScreen(game));
-            return;
         }
-
-        if (!waitInput) return;
-
-        boolean confirm = Gdx.input.isKeyJustPressed(Input.Keys.SPACE)
-                || Gdx.input.isKeyJustPressed(Input.Keys.ENTER)
-                || gamepadJustPressed(c, GAMEPAD_BUTTON_A, prevButtonA);
-
-        if (!confirm) return;
-
-        clearScene();
-        advancePhase();
     }
 
-    private void drawBloods() {
-        for (TBlood b : bloods) {
-            batch.setColor(1f, 0.1f, 0.1f, MathUtils.clamp(b.life, 0f, 1f));
-            batch.draw(bloodTex, b.x, b.y);
-        }
-        batch.setColor(Color.WHITE);
+    // ── Spawn yardımcıları ────────────────────────────────────────────────────
+
+    private void spawnEnemy1At(float x, float y) { enemies.add(new Enemy(x, y)); }
+    private void spawnEnemy2At(float x, float y) { enemies2.add(new Enemy2(x, y)); }
+    private void spawnEnemy3At(float x, float y) { enemies3.add(new Enemy3(x, y)); }
+
+    private void clearEnemiesAndEffects() {
+        enemies.clear();
+        enemies2.clear();
+        enemies3.clear();
+        bullets.clear();
+        bloods.clear();
+        tozlar.clear();
+        killDone = false;
     }
 
-    private void drawEnemies() {
-        for (TEnemy e : enemies) {
-            if (e.hp <= 0) continue;
-            Texture t;
-            switch (e.type) {
-                case 2:  t = enemy2Tex; break;
-                case 3:  t = enemy3Tex; break;
-                default: t = enemyTex;  break;
+    // ── Temizlik ──────────────────────────────────────────────────────────────
+
+    private void cleanupDeadObjects() {
+        for (int i = enemies.size  - 1; i >= 0; i--) if (enemies.get(i).dead)  enemies.removeIndex(i);
+        for (int i = enemies2.size - 1; i >= 0; i--) if (enemies2.get(i).dead) enemies2.removeIndex(i);
+        for (int i = enemies3.size - 1; i >= 0; i--) if (enemies3.get(i).dead) enemies3.removeIndex(i);
+        for (int i = bullets.size  - 1; i >= 0; i--) if (bullets.get(i).dead)  bullets.removeIndex(i);
+        for (int i = bloods.size   - 1; i >= 0; i--) if (bloods.get(i).dead)   bloods.removeIndex(i);
+        for (int i = tozlar.size   - 1; i >= 0; i--) if (tozlar.get(i).dead)   tozlar.removeIndex(i);
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+
+    private void renderGame() {
+        mapRenderer.setView(camera);
+        mapRenderer.getBatch().setShader(mapShader);
+        if (mapShader.hasUniform("u_time")) mapShader.setUniformf("u_time", shaderTime);
+        mapRenderer.render();
+        mapRenderer.getBatch().setShader(null);
+
+
+        // ── Dünya katmanı ──
+        batch.setProjectionMatrix(camera.combined);
+
+        // Bayonet animasyon
+        if (showBayonetAnim) {
+            batch.begin();
+            float bx = 16f, by = 32f, orbit = 60f;
+            float rot   = (bayonetAnimTime / 0.3f) * 360f * 1.5f;
+            float alpha = 1f - (bayonetAnimTime / 0.3f);
+            batch.setColor(1f, 1f, 1f, alpha);
+            float drawX = player.getCenterX() + MathUtils.cosDeg(rot) * orbit;
+            float drawY = player.getCenterY() + MathUtils.sinDeg(rot) * orbit;
+            batch.draw(bayonetTex,
+                    drawX - bx / 2, drawY - by / 2,
+                    bx / 2, by / 2, bx, by, 1f, 1f,
+                    rot - 90f,
+                    0, 0, bayonetTex.getWidth(), bayonetTex.getHeight(),
+                    false, false);
+            batch.setColor(Color.WHITE);
+            batch.end();
+        }
+
+        // Efektler & mermiler & oyuncu
+        batch.setShader(null);
+        batch.begin();
+        player.draw(batch);
+        player.drawGun(batch, camera);
+        for (Bullet      b : bullets) batch.draw(b.getTexture(), b.x, b.y);
+        for (BloodParticle b : bloods) batch.draw(bloodTex, b.x, b.y);
+        for (toz         t : tozlar)  batch.draw(tozTex, t.x, t.y);
+        batch.end();
+
+        // Düşmanlar — shader ile
+        batch.begin();
+        batch.setShader(enemyShader);
+        if (enemyShader != null && enemyShader.isCompiled()) {
+            if (enemyShader.hasUniform("u_time")) enemyShader.setUniformf("u_time", shaderTime);
+        }
+        for (Enemy  e : enemies)  batch.draw(enemyTex,  e.x, e.y);
+        for (Enemy2 e : enemies2) batch.draw(enemy2Tex, e.x, e.y);
+        for (Enemy3 e : enemies3) batch.draw(enemy3Tex, e.x, e.y);
+        batch.end();
+        batch.setShader(null);
+
+        // Can barları (shape renderer, world koordinat)
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (Enemy  e : enemies)  drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
+        for (Enemy2 e : enemies2) drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
+        for (Enemy3 e : enemies3) drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
+        shapeRenderer.end();
+
+        // ── UI katmanı ──
+        batch.setProjectionMatrix(uiCamera.combined);
+        batch.begin();
+        renderHearts();
+        renderHotbar();
+        renderBayonetCooldownBar();
+        renderTutorialText();
+        batch.end();
+    }
+
+    // ── Can barı ─────────────────────────────────────────────────────────────
+
+    private void drawEnemyBar(float x, float y, int hp, int maxHp) {
+        if (hp <= 0) return;
+        float bx = x, by = y + 68f, bw = 64f, bh = 7f;
+        shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.85f);
+        shapeRenderer.rect(bx, by, bw, bh);
+        float ratio = MathUtils.clamp((float) hp / maxHp, 0f, 1f);
+        shapeRenderer.setColor(ratio > 0.5f ? Color.valueOf("36d936") : Color.valueOf("d94f1a"));
+        shapeRenderer.rect(bx, by, bw * ratio, bh);
+    }
+
+    // ── UI bileşenleri (GameScreen ile birebir) ────────────────────────────
+
+    private void renderHearts() {
+        int   maxHp    = 3;
+        float heartSize = 64f;
+        float startX   = 20f;
+        float startY   = UI_HEIGHT - 58f;
+        for (int i = 0; i < maxHp; i++) {
+            Texture h;
+            if (i < player.getHp()) {
+                h = player.isRegenHeart(i) ? regenHeartTex : heartTex;
+            } else {
+                h = heartEmptyTex;
             }
-            batch.draw(t, e.x, e.y);
+            batch.draw(h, startX + i * (heartSize + 5), startY, heartSize, heartSize);
         }
     }
 
-    private void drawBullets() {
-        for (TBullet b : bullets) {
-            batch.draw(bulletTex, b.x, b.y);
+    private void renderHotbar() {
+        Texture hotbar = Hotbar1;
+        if (player != null && player.getWeapon() != null) {
+            switch (player.getWeapon().getType()) {
+                case PISTOL:  hotbar = Hotbar1; break;
+                case SHOTGUN: hotbar = Hotbar2; break;
+                case SMG:     hotbar = Hotbar3; break;
+            }
         }
+        float hw = 100, hh = 260;
+        batch.draw(hotbar, UI_WIDTH + hw / 2f, UI_HEIGHT / 2f - hh / 2f, hw, hh);
     }
 
-    private void drawPlayer() {
-        batch.draw(playerTex, playerX, playerY,
-                playerTex.getWidth()  * playerScale,
-                playerTex.getHeight() * playerScale);
-    }
+    private void renderBayonetCooldownBar() {
+        // Bayonet bar için batch'i durdur, shape renderer aç
+        batch.end();
 
-    private void drawGun() {
-        Texture g;
-        float scale;
-        switch (activeWeapon) {
-            case 1:  g = shotgunTex; scale = 2f;   break;
-            case 2:  g = smgTex;     scale = 1.5f; break;
-            default: g = gunTex;     scale = 1f;   break;
+        shapeRenderer.setProjectionMatrix(uiCamera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        float bw = 200, bh = 20;
+        float bx = UI_WIDTH - bw - 20, by = 40;
+
+        shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.8f);
+        shapeRenderer.rect(bx, by, bw, bh);
+
+        float progress = bayonetCooldown.isRunning()
+                ? bayonetCooldown.getProgress(tickManager.getCurrentTick())
+                : 1.0f;
+
+        if (progress >= 1.0f) {
+            shapeRenderer.setColor(0.2f, 0.8f, 0.2f, 1.0f);
+        } else {
+            shapeRenderer.setColor(1.0f - progress * 0.5f, progress * 0.8f, 0.1f, 1.0f);
         }
+        shapeRenderer.rect(bx, by, bw * progress, bh);
+        shapeRenderer.end();
 
-        float px    = getPlayerCenterX();
-        float py    = getPlayerCenterY();
-        float angle = getAimAngle();
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(Color.WHITE);
+        shapeRenderer.rect(bx, by, bw, bh);
+        shapeRenderer.end();
 
-        batch.draw(g,
-                px, py,
-                0, g.getHeight() / 2f,
-                g.getWidth(), g.getHeight(),
-                scale, scale,
-                angle,
-                0, 0,
-                g.getWidth(), g.getHeight(),
-                false, false);
-    }
+        batch.begin();
 
-    private void drawBayonetAnim() {
-        if (!showBayonetAnim) return;
-
-        float px = getPlayerCenterX();
-        float py = getPlayerCenterY();
-
-        float bicakBoyutuX    = 16f;
-        float bicakBoyutuY    = 32f;
-        float yorungeUzakligi = 60f;
-
-        float rotation = (bayonetAnimTime / 0.3f) * 360f * 1.5f;
-        float alpha    = 1f - (bayonetAnimTime / 0.3f);
-
-        batch.setColor(1f, 1f, 1f, alpha);
-
-        float drawX = px + MathUtils.cosDeg(rotation) * yorungeUzakligi;
-        float drawY = py + MathUtils.sinDeg(rotation) * yorungeUzakligi;
-
-        float sabitAci = -90f;
-
-        batch.draw(bayonetTex,
-                drawX - (bicakBoyutuX / 2),
-                drawY - (bicakBoyutuY / 2),
-                bicakBoyutuX / 2, bicakBoyutuY / 2,
-                bicakBoyutuX, bicakBoyutuY,
-                1f, 1f,
-                rotation + sabitAci,
-                0, 0,
-                bayonetTex.getWidth(), bayonetTex.getHeight(),
-                false, false);
-
-        batch.setColor(Color.WHITE);
-    }
-
-    private void drawHealthBars() {
-        for (TEnemy e : enemies) {
-            if (e.hp <= 0) continue;
-
-            float bx = e.x;
-            float by = e.y + 68f;
-            float bw = 64f;
-            float bh = 7f;
-
-            shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.85f);
-            shapeRenderer.rect(bx, by, bw, bh);
-
-            float ratio = MathUtils.clamp((float) e.hp / e.maxHp, 0f, 1f);
-            if (ratio > 0.5f)
-                shapeRenderer.setColor(0.2f, 0.85f, 0.2f, 1f);
-            else
-                shapeRenderer.setColor(0.85f, 0.3f, 0.1f, 1f);
-            shapeRenderer.rect(bx, by, bw * ratio, bh);
+        font.setColor(Color.WHITE);
+        font.getData().setScale(0.5f);
+        String label = game.bundle.get("game.ui.bayonet");
+        if (bayonetCooldown.isRunning()) {
+            label += game.bundle.format("game.ui.bayonet.cooldown",
+                    bayonetCooldown.getRemainingSeconds(tickManager.getCurrentTick()));
+        } else {
+            label += game.bundle.get("game.ui.bayonet.ready");
         }
+        font.draw(batch, label, bx, by + bh + 18);
+        font.getData().setScale(1f);
     }
 
-    private void drawUI(float w, float h) {
+    // ── Tutorial metin / UI ───────────────────────────────────────────────────
+
+    private void renderTutorialText() {
+        float h = UI_HEIGHT;
         switch (phase) {
             case 0:
-                drawLine("Tutorial", h - 60,  1.0f, new Color(1f, 0.4f, 0.2f, 1f));
+                drawLine("Tutorial", h - 60, 1.0f, new Color(1f, 0.4f, 0.2f, 1f));
                 drawLine("Düşmanları öldür. Her tip farklı silahla daha etkili öldürülür.", h - 90, 0.7f, Color.WHITE);
                 drawLine("WASD = Hareket   Sol tık / RT = Ateş   Sağ tık / RB = Bayonet", h - 115, 0.65f, Color.WHITE);
-                drawHint(h);
+                drawHint();
                 break;
             case 1:
-                drawLine("WASD / Sol Analog ile hareket et, mouse / Sağ Analog ile nişana al.", h - 60, 0.75f, Color.WHITE);
-                drawHint(h);
+                drawLine("WASD / Sol Analog ile hareket et, mouse / Sağ Analog ile nişan al.", h - 60, 0.75f, Color.WHITE);
+                drawHint();
                 break;
             case 2:
-                drawLine("Düşman Tip 1[Günahkâr] — SMG ile en etkili öldürülür  [NUM 3]", h - 60, 0.72f, new Color(0.3f, 0.7f, 1f, 1f));
-                drawHint(h);
+                drawLine("Düşman Tip 1 [Günahkâr] — SMG ile en etkili öldürülür  [NUM 3]", h - 60, 0.72f, new Color(0.3f, 0.7f, 1f, 1f));
+                drawHint();
                 break;
             case 3:
                 drawLine("SMG ile ateş et, düşmanı öldür!", h - 60, 0.7f, new Color(0.3f, 0.7f, 1f, 1f));
-                drawWeaponTag(w, h);
+                drawWeaponTag();
                 break;
             case 4:
-                drawLine("SMG 15 hasar / mermi", h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
-                drawDamageTable(1, w, h);
-                drawHint(h);
+                drawLine("SMG — 15 hasar / mermi", h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
+                drawDamageTable(1);
+                drawHint();
                 break;
             case 5:
-                drawLine("Düşman Tip 2[Zırhlı Robot] — Pompalı ile en etkili öldürülür  [NUM 2]", h - 60, 0.72f, new Color(1f, 0.6f, 0.2f, 1f));
-                drawHint(h);
+                drawLine("Düşman Tip 2 [Zırhlı Robot] — Pompalı ile en etkili öldürülür  [NUM 2]", h - 60, 0.72f, new Color(1f, 0.6f, 0.2f, 1f));
+                drawHint();
                 break;
             case 6:
                 drawLine("Pompalı ile ateş et, düşmanı öldür!", h - 60, 0.7f, new Color(1f, 0.6f, 0.2f, 1f));
-                drawWeaponTag(w, h);
+                drawWeaponTag();
                 break;
             case 7:
                 drawLine("Pompalı  →  Tip 2  →  15 hasar / mermi", h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
-                drawDamageTable(2, w, h);
-                drawHint(h);
+                drawDamageTable(2);
+                drawHint();
                 break;
             case 8:
-                drawLine("Düşman Tip 3[Uyuşturucu Bağımlısı Günahkâr] — Tabanca ile en etkili öldürülür  [NUM 1]", h - 60, 0.72f, new Color(0.8f, 0.3f, 1f, 1f));
-                drawHint(h);
+                drawLine("Düşman Tip 3 [Uyuşturucu Bağımlısı] — Tabanca ile en etkili  [NUM 1]", h - 60, 0.72f, new Color(0.8f, 0.3f, 1f, 1f));
+                drawHint();
                 break;
             case 9:
                 drawLine("Tabanca ile ateş et, düşmanı öldür!", h - 60, 0.7f, new Color(0.9f, 0.9f, 0.3f, 1f));
-                drawWeaponTag(w, h);
+                drawWeaponTag();
                 break;
             case 10:
                 drawLine("Tabanca  →  Tip 3  →  8 hasar / mermi", h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
-                drawDamageTable(3, w, h);
-                drawHint(h);
+                drawDamageTable(3);
+                drawHint();
                 break;
             case 11:
                 drawLine("Bayonet — Sağ tık / RB ile yakın mesafe saldırı", h - 60, 0.72f, new Color(0.9f, 0.5f, 0.5f, 1f));
                 drawLine("2+ öldürürsen can yeniler, 3+ öldürürsen 2 can yeniler.", h - 85, 0.65f, Color.WHITE);
-                drawHint(h);
+                drawHint();
                 break;
             case 12:
                 drawLine("Düşmanlara yakın git, sağ tık / RB ile bayonet kullan!", h - 60, 0.7f, new Color(0.9f, 0.5f, 0.5f, 1f));
-                drawBayonetBar(w, h);
                 break;
             case 13:
                 drawLine("Hazır?", h - 55, 1.0f, new Color(0.4f, 1f, 0.4f, 1f));
-                drawSummary(w, h);
-                drawHint(h);
+                drawSummary();
+                drawHint();
                 break;
         }
-
-
     }
 
     private void drawLine(String text, float y, float scale, Color color) {
@@ -765,7 +922,7 @@ public class TutorialScreen implements Screen {
         font.setColor(Color.WHITE);
     }
 
-    private void drawHint(float h) {
+    private void drawHint() {
         float blink = MathUtils.sin(phaseTime * 4f) * 0.25f + 0.75f;
         font.getData().setScale(0.58f);
         font.setColor(1f, 1f, 1f, blink);
@@ -774,13 +931,15 @@ public class TutorialScreen implements Screen {
         font.setColor(Color.WHITE);
     }
 
-    private void drawWeaponTag(float w, float h) {
+    private void drawWeaponTag() {
         String name;
         Color c;
-        switch (activeWeapon) {
-            case 1:  name = "POMPA";   c = new Color(1f, 0.6f, 0.2f, 1f); break;
-            case 2:  name = "SMG";     c = new Color(0.3f, 0.7f, 1f, 1f); break;
-            default: name = "TABANCA"; c = new Color(0.9f, 0.9f, 0.3f, 1f); break;
+        Weapons w = player.getWeapon();
+        if (w == null) return;
+        switch (w.getType()) {
+            case SHOTGUN: name = "POMPA";   c = new Color(1f, 0.6f, 0.2f, 1f); break;
+            case SMG:     name = "SMG";     c = new Color(0.3f, 0.7f, 1f, 1f); break;
+            default:      name = "TABANCA"; c = new Color(0.9f, 0.9f, 0.3f, 1f); break;
         }
         font.getData().setScale(0.7f);
         font.setColor(c);
@@ -789,144 +948,113 @@ public class TutorialScreen implements Screen {
         font.setColor(Color.WHITE);
     }
 
-    private void drawBayonetBar(float w, float h) {
-        float prog = 1f - (bayonetCooldown / BAYONET_COOLDOWN);
-        if (prog < 0f) prog = 0f;
-        if (prog > 1f) prog = 1f;
-        String label = prog >= 1f ? "Bayonet: HAZIR" : String.format("Bayonet: %.1fs", bayonetCooldown);
-        font.getData().setScale(0.6f);
-        font.setColor(prog >= 1f ? new Color(0.4f, 0.9f, 0.4f, 1f) : new Color(0.9f, 0.5f, 0.2f, 1f));
-        font.draw(batch, label, 24, 60);
-        font.getData().setScale(1f);
-        font.setColor(Color.WHITE);
-    }
-
-    private void drawDamageTable(int enemyType, float w, float h) {
+    private void drawDamageTable(int enemyType) {
         String[] silahlar = {"SMG [3]", "Pompalı [2]", "Tabanca [1]"};
         String[] hasarlar;
         int bestIdx;
         switch (enemyType) {
-            case 1:  hasarlar = new String[]{"15", "1", "3"};     bestIdx = 0; break;
-            case 2:  hasarlar = new String[]{"1", "15", "5"};     bestIdx = 1; break;
-            default: hasarlar = new String[]{"0.5", "0.3", "8"};  bestIdx = 2; break;
+            case 1:  hasarlar = new String[]{"15", "1",   "3"};    bestIdx = 0; break;
+            case 2:  hasarlar = new String[]{"1",  "15",  "5"};    bestIdx = 1; break;
+            default: hasarlar = new String[]{"0.5","0.3", "8"};    bestIdx = 2; break;
         }
         Color[] sc = {
-                new Color(0.3f, 0.7f, 1f, 1f),
-                new Color(1f, 0.6f, 0.2f, 1f),
-                new Color(0.9f, 0.9f, 0.3f, 1f)
+                new Color(0.3f, 0.7f, 1f,  1f),
+                new Color(1f,   0.6f, 0.2f,1f),
+                new Color(0.9f, 0.9f, 0.3f,1f)
         };
-
-        float startY = h - 115;
+        float startY = UI_HEIGHT - 115;
         font.getData().setScale(0.65f);
         for (int i = 0; i < 3; i++) {
-            boolean best = (i == bestIdx);
             font.setColor(sc[i]);
             font.draw(batch, silahlar[i], 24, startY - i * 22);
-            font.setColor(best ? new Color(0.4f, 1f, 0.4f, 1f) : new Color(0.6f, 0.6f, 0.6f, 1f));
-            font.draw(batch, hasarlar[i] + " hasar" + (best ? " *" : ""), 160, startY - i * 22);
+            font.setColor(i == bestIdx ? new Color(0.4f,1f,0.4f,1f) : new Color(0.6f,0.6f,0.6f,1f));
+            font.draw(batch, hasarlar[i] + " hasar" + (i == bestIdx ? " *" : ""), 160, startY - i * 22);
         }
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);
     }
 
-    private void drawSummary(float w, float h) {
+    private void drawSummary() {
         String[][] rows = {
-                {"Tip 1", "→  SMG  [3]",    "15 hasar"},
-                {"Tip 2", "→  Pompalı [2]", "15 hasar"},
-                {"Tip 3", "→  Tabanca [1]", "8 hasar"},
-                {"Bayonet", "→  Sağ tık / RB", "Yakın alan"}
+                {"Tip 1",    "→  SMG  [3]",       "15 hasar"},
+                {"Tip 2",    "→  Pompalı [2]",     "15 hasar"},
+                {"Tip 3",    "→  Tabanca [1]",     "8 hasar"},
+                {"Bayonet",  "→  Sağ tık / RB",    "Yakın alan"}
         };
         Color[] sc = {
-                new Color(0.3f, 0.7f, 1f, 1f),
-                new Color(1f, 0.6f, 0.2f, 1f),
-                new Color(0.9f, 0.9f, 0.3f, 1f),
-                new Color(0.9f, 0.5f, 0.5f, 1f)
+                new Color(0.3f,0.7f,1f,1f),
+                new Color(1f,0.6f,0.2f,1f),
+                new Color(0.9f,0.9f,0.3f,1f),
+                new Color(0.9f,0.5f,0.5f,1f)
         };
-
-        float startY = h - 100;
+        float startY = UI_HEIGHT - 100;
         font.getData().setScale(0.7f);
         for (int i = 0; i < rows.length; i++) {
             float y = startY - i * 24;
-            font.setColor(Color.WHITE);
-            font.draw(batch, rows[i][0], 24, y);
-            font.setColor(sc[i]);
-            font.draw(batch, rows[i][1], 100, y);
-            font.setColor(0.5f, 0.9f, 0.5f, 1f);
-            font.draw(batch, rows[i][2], 280, y);
+            font.setColor(Color.WHITE); font.draw(batch, rows[i][0],  24,  y);
+            font.setColor(sc[i]);       font.draw(batch, rows[i][1],  100, y);
+            font.setColor(0.5f,0.9f,0.5f,1f); font.draw(batch, rows[i][2], 280, y);
         }
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);
     }
 
-    private float getPlayerCenterX() {
-        return playerX + (playerTex.getWidth() * playerScale) / 2f;
+    // ── Yardımcılar ───────────────────────────────────────────────────────────
+
+    private Controller getGamepad() {
+        return Controllers.getControllers().size > 0
+                ? Controllers.getControllers().first()
+                : null;
     }
 
-    private float getPlayerCenterY() {
-        return playerY + (playerTex.getHeight() * playerScale) / 2f;
+    private boolean gamepadJustPressed(Controller c, int button, boolean prevState) {
+        return c != null && c.getButton(button) && !prevState;
     }
 
-    private void spawnEnemy(int type, float x, float y) {
-        int maxHp;
-        switch (type) {
-            case 1:  maxHp = 15; break;
-            case 2:  maxHp = 15; break;
-            case 3:  maxHp = 8;  break;
-            default: maxHp = 10; break;
+    // ── Screen arayüzü ────────────────────────────────────────────────────────
+
+    @Override
+    public void show() {
+        ShaderProgram.pedantic = false;
+        enemyShader = new ShaderProgram(
+                Gdx.files.internal("shaders/red.vsh"),
+                Gdx.files.internal("shaders/red.fsh")
+        );
+        if (!enemyShader.isCompiled()) {
+            Gdx.app.error("TutorialScreen", "Enemy shader hata: " + enemyShader.getLog());
+            enemyShader = null;
         }
-        enemies.add(new TEnemy(type, x, y, maxHp));
+        map = new TmxMapLoader().load("flape.tmx");
+        groundLayer      = (TiledMapTileLayer) map.getLayers().get(0);
+        wallLayer        = (TiledMapTileLayer) map.getLayers().get("dk2");
+        lowObstacleLayer = (TiledMapTileLayer) map.getLayers().get("dk3");
+        mapRenderer = new OrthogonalTiledMapRenderer(map, 3f);
+
+        mapShader = new ShaderProgram(
+                Gdx.files.internal("shaders/map.vsh"),
+                Gdx.files.internal("shaders/map.fsh")
+        );
     }
 
-    private void spawnBlood(float x, float y, int count) {
-        for (int i = 0; i < count; i++)
-            bloods.add(new TBlood(x + MathUtils.random(-16f, 16f), y + MathUtils.random(-16f, 16f)));
+    @Override
+    public void resize(int width, int height) {
+        viewport.update(width, height, true);
+        uiViewport.update(width, height, true);
+        uiCamera.position.set(UI_WIDTH / 2f, UI_HEIGHT / 2f, 0);
+        uiCamera.update();
     }
 
-    static class TEnemy {
-        int type;
-        float x, y;
-        int hp, maxHp;
-        TEnemy(int type, float x, float y, int maxHp) {
-            this.type  = type;
-            this.x     = x;
-            this.y     = y;
-            this.hp    = maxHp;
-            this.maxHp = maxHp;
-        }
-    }
-
-    static class TBullet {
-        float x, y, dx, dy;
-        int damage;
-        TBullet(float x, float y, float dx, float dy, int damage) {
-            this.x      = x;
-            this.y      = y;
-            this.dx     = dx;
-            this.dy     = dy;
-            this.damage = damage;
-        }
-    }
-
-    static class TBlood {
-        float x, y, vx, vy, life = 1f;
-        TBlood(float x, float y) {
-            this.x  = x;
-            this.y  = y;
-            this.vx = MathUtils.random(-50f, 50f);
-            this.vy = MathUtils.random(10f, 90f);
-        }
-    }
-
-    @Override public void show()   {}
     @Override public void pause()  {}
     @Override public void resume() {}
     @Override public void hide()   {}
-    @Override public void resize(int w, int h) {
-        camera.setToOrtho(false, w, h);
-    }
+
     @Override
     public void dispose() {
-        batch.dispose();
-        shapeRenderer.dispose();
+        if (batch         != null) batch.dispose();
+        if (shapeRenderer != null) shapeRenderer.dispose();
+        if (enemyShader   != null) enemyShader.dispose();
+        if (map != null) map.dispose();
+        if (mapRenderer != null) mapRenderer.dispose();
+        if (mapShader != null) mapShader.dispose();
     }
 }

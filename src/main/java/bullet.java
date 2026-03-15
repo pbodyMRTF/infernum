@@ -52,38 +52,35 @@ class Bullet {
         x += vx * dt;
         y += vy * dt;
 
-        float unitScale = 3f;
-        float tileW = wallLayer.getTileWidth() * unitScale;
-        float tileH = wallLayer.getTileHeight() * unitScale;
+        // wallLayer null ise (Tutorial gibi) duvar çarpışması yok
+        if (wallLayer != null) {
+            float unitScale = 3f;
+            float tileW = wallLayer.getTileWidth() * unitScale;
+            float tileH = wallLayer.getTileHeight() * unitScale;
 
-        int tileX = (int) (x / tileW);
-        int tileY = (int) (y / tileH);
+            int tileX = (int) (x / tileW);
+            int tileY = (int) (y / tileH);
 
-        if (tileX >= 0 && tileY >= 0 && tileX < wallLayer.getWidth() && tileY < wallLayer.getHeight()
-                && wallLayer.getCell(tileX, tileY) != null) {
+            if (tileX >= 0 && tileY >= 0 && tileX < wallLayer.getWidth() && tileY < wallLayer.getHeight()
+                    && wallLayer.getCell(tileX, tileY) != null) {
 
-            int oldTileX = (int) (oldX / tileW);
+                int oldTileX = (int) (oldX / tileW);
 
-            if (oldTileX != tileX) {
-                vx = -vx;
-                x = oldX;
-            } else {
-                vy = -vy;
-                y = oldY;
+                if (oldTileX != tileX) {
+                    vx = -vx;
+                    x = oldX;
+                } else {
+                    vy = -vy;
+                    y = oldY;
+                }
+
+                bounceCount++;
+                if (bounceCount > maxBounces) dead = true;
             }
-
-            bounceCount++;
-            if (bounceCount > maxBounces) dead = true;
         }
 
-        if (x <= 0 || x >= mapWidth - size) {
-            vx = -vx;
-            bounceCount++;
-        }
-        if (y <= 0 || y >= mapHeight - size) {
-            vy = -vy;
-            bounceCount++;
-        }
+        if (x <= 0 || x >= mapWidth - size) { vx = -vx; bounceCount++; }
+        if (y <= 0 || y >= mapHeight - size) { vy = -vy; bounceCount++; }
 
         if (bounceCount > maxBounces) dead = true;
     }
