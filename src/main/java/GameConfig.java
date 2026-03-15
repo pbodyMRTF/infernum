@@ -3,7 +3,7 @@ public class GameConfig {
     public String difficulty = "NORMAL";// Varsayılan değer
     public String Screen = "FULLSCREEN";
 
-    public String language = "tr";
+    public String language = "en";
     // Parametresiz constructor
     public GameConfig() {
     }
