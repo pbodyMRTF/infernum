@@ -289,10 +289,11 @@ public class TutorialScreen implements Screen {
 
         // Kamera: player'ı ortala, dünya sınırlarına kilitle
         camera.position.set(player.getCenterX(), player.getCenterY(), 0);
-        float halfW = viewport.getWorldWidth()  / 2f;
-        float halfH = viewport.getWorldHeight() / 2f;
-        camera.position.x = MathUtils.clamp(camera.position.x, halfW, WORLD_WIDTH  * 3f - halfW);
-        camera.position.y = MathUtils.clamp(camera.position.y, halfH, WORLD_HEIGHT * 3f - halfH);
+        float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
+        float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
+
+        camera.position.x = MathUtils.clamp(camera.position.x, viewport.getWorldWidth()  / 2f, mapWidth  - viewport.getWorldWidth()  / 2f);
+        camera.position.y = MathUtils.clamp(camera.position.y, viewport.getWorldHeight() / 2f, mapHeight - viewport.getWorldHeight() / 2f);
         camera.update();
 
         renderGame();
@@ -305,18 +306,14 @@ public class TutorialScreen implements Screen {
             prevButtonA = prevButtonB = false;
         }
     }
-
-    // ── Güncelleme metodları ──────────────────────────────────────────────────
-
-    /** Tutorial'da harita yok, basit sınır çarpışması kullanılıyor. */
     private void updatePlayer(float delta) {
         player.update(delta, wallLayer, lowObstacleLayer);
 
-        // Ekran sınırlarını uygula (harita yerine world alanı)
-        float minX = 0f, maxX = WORLD_WIDTH  - player.getTexture().getWidth();
-        float minY = 0f, maxY = WORLD_HEIGHT - player.getTexture().getHeight();
-        player.x = MathUtils.clamp(player.x, minX, maxX);
-        player.y = MathUtils.clamp(player.y, minY, maxY);
+        float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
+        float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
+
+        player.x = MathUtils.clamp(player.x, 0, mapWidth  - player.getTexture().getWidth());
+        player.y = MathUtils.clamp(player.y, 0, mapHeight - player.getTexture().getHeight());
     }
 
     private void handleShooting() {
@@ -375,7 +372,9 @@ public class TutorialScreen implements Screen {
     }
 
     private void updateBullets(float delta) {
-        for (Bullet b : bullets) b.update(delta, wallLayer, WORLD_WIDTH * 3f, WORLD_HEIGHT * 3f);
+        float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
+        float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
+        for (Bullet b : bullets) b.update(delta, wallLayer, mapWidth, mapHeight);
     }
 
     private void updateEnemies(float delta) {
@@ -684,7 +683,7 @@ public class TutorialScreen implements Screen {
         for (int i = tozlar.size   - 1; i >= 0; i--) if (tozlar.get(i).dead)   tozlar.removeIndex(i);
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    //RENDER
 
     private void renderGame() {
         mapRenderer.setView(camera);
@@ -694,7 +693,7 @@ public class TutorialScreen implements Screen {
         mapRenderer.getBatch().setShader(null);
 
 
-        // ── Dünya katmanı ──
+
         batch.setProjectionMatrix(camera.combined);
 
         // Bayonet animasyon
