@@ -41,7 +41,7 @@ public class Jgame extends Game {
         renk2 = rnd.nextFloat() * 0.5f;
         renk3 = rnd.nextFloat();
 
-        Version = "Release 1.0";
+        Version = "1.1 rc1";
 
         createFonts();
         loadBundle();
