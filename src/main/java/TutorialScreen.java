@@ -850,64 +850,64 @@ public class TutorialScreen implements Screen {
         float h = UI_HEIGHT;
         switch (phase) {
             case 0:
-                drawLine("Tutorial", h - 60, 1.0f, new Color(1f, 0.4f, 0.2f, 1f));
-                drawLine("Düşmanları öldür. Her tip farklı silahla daha etkili öldürülür.", h - 90, 0.7f, Color.WHITE);
-                drawLine("WASD = Hareket   Sol tık / RT = Ateş   Sağ tık / RB = Bayonet", h - 115, 0.65f, Color.WHITE);
+                drawLine(game.bundle.get("tutorial.phase0.title"), h - 60, 1.0f, new Color(1f, 0.4f, 0.2f, 1f));
+                drawLine(game.bundle.get("tutorial.phase0.line1"), h - 90, 0.7f, Color.WHITE);
+                drawLine(game.bundle.get("tutorial.phase0.line2"), h - 115, 0.65f, Color.WHITE);
                 drawHint();
                 break;
             case 1:
-                drawLine("WASD / Sol Analog ile hareket et, mouse / Sağ Analog ile nişan al.", h - 60, 0.75f, Color.WHITE);
+                drawLine(game.bundle.get("tutorial.phase1.line1"), h - 60, 0.75f, Color.WHITE);
                 drawHint();
                 break;
             case 2:
-                drawLine("Düşman Tip 1 [Günahkâr] — SMG ile en etkili öldürülür  [NUM 3]", h - 60, 0.72f, new Color(0.3f, 0.7f, 1f, 1f));
+                drawLine(game.bundle.get("tutorial.phase2.line1"), h - 60, 0.72f, new Color(0.3f, 0.7f, 1f, 1f));
                 drawHint();
                 break;
             case 3:
-                drawLine("SMG ile ateş et, düşmanı öldür!", h - 60, 0.7f, new Color(0.3f, 0.7f, 1f, 1f));
+                drawLine(game.bundle.get("tutorial.phase3.line1"), h - 60, 0.7f, new Color(0.3f, 0.7f, 1f, 1f));
                 drawWeaponTag();
                 break;
             case 4:
-                drawLine("SMG — 15 hasar / mermi", h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
+                drawLine(game.bundle.get("tutorial.phase4.line1"), h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
                 drawDamageTable(1);
                 drawHint();
                 break;
             case 5:
-                drawLine("Düşman Tip 2 [Zırhlı Robot] — Pompalı ile en etkili öldürülür  [NUM 2]", h - 60, 0.72f, new Color(1f, 0.6f, 0.2f, 1f));
+                drawLine(game.bundle.get("tutorial.phase5.line1"), h - 60, 0.72f, new Color(1f, 0.6f, 0.2f, 1f));
                 drawHint();
                 break;
             case 6:
-                drawLine("Pompalı ile ateş et, düşmanı öldür!", h - 60, 0.7f, new Color(1f, 0.6f, 0.2f, 1f));
+                drawLine(game.bundle.get("tutorial.phase6.line1"), h - 60, 0.7f, new Color(1f, 0.6f, 0.2f, 1f));
                 drawWeaponTag();
                 break;
             case 7:
-                drawLine("Pompalı  →  Tip 2  →  15 hasar / mermi", h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
+                drawLine(game.bundle.get("tutorial.phase7.line1"), h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
                 drawDamageTable(2);
                 drawHint();
                 break;
             case 8:
-                drawLine("Düşman Tip 3 [Uyuşturucu Bağımlısı] — Tabanca ile en etkili  [NUM 1]", h - 60, 0.72f, new Color(0.8f, 0.3f, 1f, 1f));
+                drawLine(game.bundle.get("tutorial.phase8.line1"), h - 60, 0.72f, new Color(0.8f, 0.3f, 1f, 1f));
                 drawHint();
                 break;
             case 9:
-                drawLine("Tabanca ile ateş et, düşmanı öldür!", h - 60, 0.7f, new Color(0.9f, 0.9f, 0.3f, 1f));
+                drawLine(game.bundle.get("tutorial.phase9.line1"), h - 60, 0.7f, new Color(0.9f, 0.9f, 0.3f, 1f));
                 drawWeaponTag();
                 break;
             case 10:
-                drawLine("Tabanca  →  Tip 3  →  8 hasar / mermi", h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
+                drawLine(game.bundle.get("tutorial.phase10.line1"), h - 60, 0.72f, new Color(0.5f, 1f, 0.5f, 1f));
                 drawDamageTable(3);
                 drawHint();
                 break;
             case 11:
-                drawLine("Bayonet — Sağ tık / RB ile yakın mesafe saldırı", h - 60, 0.72f, new Color(0.9f, 0.5f, 0.5f, 1f));
-                drawLine("2+ öldürürsen can yeniler, 3+ öldürürsen 2 can yeniler.", h - 85, 0.65f, Color.WHITE);
+                drawLine(game.bundle.get("tutorial.phase11.line1"), h - 60, 0.72f, new Color(0.9f, 0.5f, 0.5f, 1f));
+                drawLine(game.bundle.get("tutorial.phase11.line2"), h - 85, 0.65f, Color.WHITE);
                 drawHint();
                 break;
             case 12:
-                drawLine("Düşmanlara yakın git, sağ tık / RB ile bayonet kullan!", h - 60, 0.7f, new Color(0.9f, 0.5f, 0.5f, 1f));
+                drawLine(game.bundle.get("tutorial.phase12.line1"), h - 60, 0.7f, new Color(0.9f, 0.5f, 0.5f, 1f));
                 break;
             case 13:
-                drawLine("Hazır?", h - 55, 1.0f, new Color(0.4f, 1f, 0.4f, 1f));
+                drawLine(game.bundle.get("tutorial.phase13.title"), h - 55, 1.0f, new Color(0.4f, 1f, 0.4f, 1f));
                 drawSummary();
                 drawHint();
                 break;
@@ -926,7 +926,7 @@ public class TutorialScreen implements Screen {
         float blink = MathUtils.sin(phaseTime * 4f) * 0.25f + 0.75f;
         font.getData().setScale(0.58f);
         font.setColor(1f, 1f, 1f, blink);
-        font.draw(batch, "SPACE / ENTER / A ile devam", 24, 28);
+        font.draw(batch, game.bundle.get("tutorial.hint"), 24, 28);
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);
     }
@@ -937,9 +937,9 @@ public class TutorialScreen implements Screen {
         Weapons w = player.getWeapon();
         if (w == null) return;
         switch (w.getType()) {
-            case SHOTGUN: name = "POMPA";   c = new Color(1f, 0.6f, 0.2f, 1f); break;
-            case SMG:     name = "SMG";     c = new Color(0.3f, 0.7f, 1f, 1f); break;
-            default:      name = "TABANCA"; c = new Color(0.9f, 0.9f, 0.3f, 1f); break;
+            case SHOTGUN: name = game.bundle.get("tutorial.weapon.shotgun"); c = new Color(1f, 0.6f, 0.2f, 1f); break;
+            case SMG:     name = game.bundle.get("tutorial.weapon.smg");     c = new Color(0.3f, 0.7f, 1f, 1f); break;
+            default:      name = game.bundle.get("tutorial.weapon.pistol");  c = new Color(0.9f, 0.9f, 0.3f, 1f); break;
         }
         font.getData().setScale(0.7f);
         font.setColor(c);
@@ -949,13 +949,17 @@ public class TutorialScreen implements Screen {
     }
 
     private void drawDamageTable(int enemyType) {
-        String[] silahlar = {"SMG [3]", "Pompalı [2]", "Tabanca [1]"};
+        String[] silahlar = {
+                game.bundle.get("tutorial.damage.smg"),
+                game.bundle.get("tutorial.damage.shotgun"),
+                game.bundle.get("tutorial.damage.pistol")
+        };
         String[] hasarlar;
         int bestIdx;
         switch (enemyType) {
-            case 1:  hasarlar = new String[]{"15", "1",   "3"};    bestIdx = 0; break;
-            case 2:  hasarlar = new String[]{"1",  "15",  "5"};    bestIdx = 1; break;
-            default: hasarlar = new String[]{"0.5","0.3", "8"};    bestIdx = 2; break;
+            case 1:  hasarlar = new String[]{"15", "1",   "3"};  bestIdx = 0; break;
+            case 2:  hasarlar = new String[]{"1",  "15",  "5"};  bestIdx = 1; break;
+            default: hasarlar = new String[]{"0.5","0.3", "8"};  bestIdx = 2; break;
         }
         Color[] sc = {
                 new Color(0.3f, 0.7f, 1f,  1f),
@@ -964,11 +968,13 @@ public class TutorialScreen implements Screen {
         };
         float startY = UI_HEIGHT - 115;
         font.getData().setScale(0.65f);
+        String suffix = game.bundle.get("tutorial.damage.suffix");
+        String best   = game.bundle.get("tutorial.damage.best");
         for (int i = 0; i < 3; i++) {
             font.setColor(sc[i]);
             font.draw(batch, silahlar[i], 24, startY - i * 22);
             font.setColor(i == bestIdx ? new Color(0.4f,1f,0.4f,1f) : new Color(0.6f,0.6f,0.6f,1f));
-            font.draw(batch, hasarlar[i] + " hasar" + (i == bestIdx ? " *" : ""), 160, startY - i * 22);
+            font.draw(batch, hasarlar[i] + suffix + (i == bestIdx ? best : ""), 160, startY - i * 22);
         }
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);
@@ -976,10 +982,10 @@ public class TutorialScreen implements Screen {
 
     private void drawSummary() {
         String[][] rows = {
-                {"Tip 1",    "→  SMG  [3]",       "15 hasar"},
-                {"Tip 2",    "→  Pompalı [2]",     "15 hasar"},
-                {"Tip 3",    "→  Tabanca [1]",     "8 hasar"},
-                {"Bayonet",  "→  Sağ tık / RB",    "Yakın alan"}
+                {game.bundle.get("tutorial.summary.enemy1"),   game.bundle.get("tutorial.summary.smg"),          game.bundle.get("tutorial.summary.dmg15")},
+                {game.bundle.get("tutorial.summary.enemy2"),   game.bundle.get("tutorial.summary.shotgun"),       game.bundle.get("tutorial.summary.dmg15")},
+                {game.bundle.get("tutorial.summary.enemy3"),   game.bundle.get("tutorial.summary.pistol"),        game.bundle.get("tutorial.summary.dmg8")},
+                {game.bundle.get("tutorial.summary.bayonet"),  game.bundle.get("tutorial.summary.bayonetAction"), game.bundle.get("tutorial.summary.melee")}
         };
         Color[] sc = {
                 new Color(0.3f,0.7f,1f,1f),
@@ -991,9 +997,9 @@ public class TutorialScreen implements Screen {
         font.getData().setScale(0.7f);
         for (int i = 0; i < rows.length; i++) {
             float y = startY - i * 24;
-            font.setColor(Color.WHITE); font.draw(batch, rows[i][0],  24,  y);
-            font.setColor(sc[i]);       font.draw(batch, rows[i][1],  100, y);
-            font.setColor(0.5f,0.9f,0.5f,1f); font.draw(batch, rows[i][2], 280, y);
+            font.setColor(Color.WHITE);       font.draw(batch, rows[i][0],  24,  y);
+            font.setColor(sc[i]);             font.draw(batch, rows[i][1], 100,  y);
+            font.setColor(0.5f,0.9f,0.5f,1f);font.draw(batch, rows[i][2], 280,  y);
         }
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);
