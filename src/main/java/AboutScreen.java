@@ -32,7 +32,7 @@ public class AboutScreen implements Screen {
         this.game         = game;
         this.batch        = new SpriteBatch();
         this.shapeRenderer = new ShapeRenderer();
-        this.font         = game.font;
+        this.font         = game.getFont(Jgame.FONT_SIZE_32);
         loadAssets();
     }
 

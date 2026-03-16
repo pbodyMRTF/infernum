@@ -139,7 +139,7 @@ public class TutorialScreen implements Screen {
         this.game = game;
 
         batch         = new SpriteBatch();
-        font          = game.font;
+        font          = game.getFont(Jgame.FONT_SIZE_32);
         shapeRenderer = new ShapeRenderer();
 
         // Kameralar

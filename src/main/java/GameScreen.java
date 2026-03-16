@@ -132,7 +132,7 @@ public class GameScreen implements Screen {
         this.renk3 = game.renk3;
 
         batch         = new SpriteBatch();
-        font          = game.font;
+        font          = game.getFont(Jgame.FONT_SIZE_32);
         shapeRenderer = new ShapeRenderer();
 
         loadConfig();

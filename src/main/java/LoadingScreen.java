@@ -22,7 +22,7 @@ public class LoadingScreen implements Screen {
     public void show() {
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
-        font = game.font;
+        font = game.getFont(Jgame.FONT_SIZE_32);
         Assets.load();
     }
 
