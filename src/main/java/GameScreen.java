@@ -809,8 +809,8 @@ public class GameScreen implements Screen {
 
     @Override
     public void dispose() {
-        if (shader1   != null && !shader1.isCompiled())   shader1.dispose();
-        if (mapShader != null && !mapShader.isCompiled()) mapShader.dispose();
+        if (shader1 != null) shader1.dispose();
+        if (mapShader != null) mapShader.dispose();
         if (batch         != null) batch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (renderer != null) renderer.dispose();
