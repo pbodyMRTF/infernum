@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
@@ -20,7 +21,6 @@ public class MainMenuScreen implements Screen {
     SpriteBatch   batch;
     ShapeRenderer shapeRenderer;
 
-    // fieldda font tutmaya gerek yok babush
     private BitmapFont fontMenu;
     private BitmapFont fontTitle;
     private BitmapFont fontVersion;
@@ -29,6 +29,8 @@ public class MainMenuScreen implements Screen {
     private ExtendViewport      viewport;
     private static final float VIRTUAL_WIDTH  = 1024f;
     private static final float VIRTUAL_HEIGHT = 768f;
+
+    private GlyphLayout layout = new GlyphLayout();
 
     private float titleScale     = 1.0f;
     private float titlePulse     = 0f;
@@ -59,10 +61,9 @@ public class MainMenuScreen implements Screen {
         batch         = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
 
-        // Her amaç için uygun boyutu bir kere al
-        fontTitle   = game.getFont(Jgame.FONT_SIZE_96); // Büyük başlık
-        fontMenu    = game.getFont(Jgame.FONT_SIZE_32); // Menü öğeleri
-        fontVersion = game.getFont(Jgame.FONT_SIZE_16); // Versiyon yazısı
+        fontTitle   = game.getFont(Jgame.FONT_SIZE_96);
+        fontMenu    = game.getFont(Jgame.FONT_SIZE_32);
+        fontVersion = game.getFont(Jgame.FONT_SIZE_16);
 
         camera   = new OrthographicCamera();
         viewport = new ExtendViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, camera);
@@ -109,24 +110,24 @@ public class MainMenuScreen implements Screen {
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
-        // Başlık — ölçek animasyonu için getData().setScale() kullanıyoruz
+        // Başlık — tam ortalı
         fontTitle.getData().setScale(1f + titleScale * 0.04f);
         fontTitle.setColor(1, 0.3f, 0.2f, 1);
-        fontTitle.draw(batch, game.bundle.get("menu.title"),
-                VIRTUAL_WIDTH / 2f - 100, VIRTUAL_HEIGHT / 2f + 150);
+        layout.setText(fontTitle, game.bundle.get("menu.title"));
+        float titleX = (VIRTUAL_WIDTH - layout.width) / 2f;
+        fontTitle.draw(batch, game.bundle.get("menu.title"), titleX, VIRTUAL_HEIGHT / 2f + 75);
         fontTitle.getData().setScale(1f);
         fontTitle.setColor(1, 1, 1, 1);
 
         // Menü öğeleri
-        float menuX      = VIRTUAL_WIDTH / 2f - 100;
         float menuStartY = VIRTUAL_HEIGHT / 2f;
         float spacing    = 50f;
 
-        drawMenuItem(game.bundle.get("menu.start"),    menuX, menuStartY,               0);
-        drawMenuItem(game.bundle.get("menu.tutorial"), menuX, menuStartY - spacing,     1);
-        drawMenuItem(game.bundle.get("menu.settings"), menuX, menuStartY - 2 * spacing, 2);
-        drawMenuItem(game.bundle.get("menu.credits"),  menuX, menuStartY - 3 * spacing, 3);
-        drawMenuItem(game.bundle.get("menu.exit"),     menuX, menuStartY - 4 * spacing, 4);
+        drawMenuItem(game.bundle.get("menu.start"),    menuStartY,               0);
+        drawMenuItem(game.bundle.get("menu.tutorial"), menuStartY - spacing,     1);
+        drawMenuItem(game.bundle.get("menu.settings"), menuStartY - 2 * spacing, 2);
+        drawMenuItem(game.bundle.get("menu.credits"),  menuStartY - 3 * spacing, 3);
+        drawMenuItem(game.bundle.get("menu.exit"),     menuStartY - 4 * spacing, 4);
 
         // Versiyon
         fontVersion.setColor(0.7f, 0.7f, 0.7f, menuAlpha * 0.6f);
@@ -138,15 +139,23 @@ public class MainMenuScreen implements Screen {
         handleInput();
     }
 
-    private void drawMenuItem(String label, float x, float y, int index) {
+    private void drawMenuItem(String label, float y, int index) {
+        // Sadece label'a göre ortala
+        layout.setText(fontMenu, label);
+        float centeredX = (VIRTUAL_WIDTH - layout.width) / 2f;
+
         if (selectedOption == index) {
             fontMenu.setColor(1, 1, 0, menuAlpha * selectionBlink);
-            fontMenu.draw(batch, "> " + label + " <", x, y);
+            fontMenu.draw(batch, label, centeredX, y);
+
+            // Oku label'ın soluna ayrıca çiz
+            float arrowX = centeredX - 30f;
+            fontMenu.draw(batch, ">", arrowX, y);
         } else {
             fontMenu.setColor(1, 1, 1, menuAlpha);
-            fontMenu.draw(batch, "  " + label, x, y);
+            fontMenu.draw(batch, label, centeredX, y);
         }
-        fontMenu.setColor(1, 1, 1, 1); // rengi sıfırla
+        fontMenu.setColor(1, 1, 1, 1);
     }
 
     private void updateAnimations(float delta) {
