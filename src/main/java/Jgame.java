@@ -27,7 +27,7 @@ public class Jgame extends Game {
             "aâbcçdefgğhıijklmnoöprsştuüvwxyz" +
                     "AÂBCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVWXYZ" +
                     "0123456789" +
-                    ".,:;!?()[]{}+-*/'\" #<>";
+                    ".,:;!?()[]{}+-*/'\" #<>|";
 
     public I18NBundle bundle;
 
