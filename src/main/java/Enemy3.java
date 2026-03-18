@@ -1,6 +1,6 @@
 public class Enemy3 {
     float x, y;
-    float speed = 300 + (float)Math.random() * 200;
+    float speed = 256 + (float)Math.random() * 128;
     boolean dead = false;
     int hp = 8;
     int maxHp = 8;
