@@ -320,9 +320,9 @@ public class GameScreen implements Screen {
         }
 
         int enemyType = game.rnd.nextInt(10);
-        if (enemyType < 4)      enemies.add(new Enemy(spawnX, spawnY));
-        else if (enemyType < 7) enemies2.add(new Enemy2(spawnX, spawnY));
-        else                    enemies3.add(new Enemy3(spawnX, spawnY));
+        if (enemyType < 4)      enemies.add(new Enemy(spawnX, spawnY)); // %40 4/10
+        else if (enemyType < 8) enemies2.add(new Enemy2(spawnX, spawnY));// %40 4/10
+        else                    enemies3.add(new Enemy3(spawnX, spawnY));// %20 2/10
     }
 
     private void handleEnemySpawn(int currentTick) {
