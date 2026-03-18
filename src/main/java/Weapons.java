@@ -37,7 +37,7 @@ public class Weapons {
                 gunTexturePath = Assets.Textures.SHOTGUN;
                 gunScale = 2f;
                 fireRateTicks = 40;
-                bulletCount = 4;
+                bulletCount = 6;
                 bulletSpeed = 600f;
                 bulletSpread = 15f;
                 isAutomatic = false;
