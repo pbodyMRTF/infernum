@@ -32,20 +32,13 @@ public class Jgame extends Game {
     public I18NBundle bundle;
 
     Random rnd = new Random();
-    float renk1, renk2, renk3;
     public static String Version;
 
     @Override
     public void create() {
-        renk1 = rnd.nextFloat();
-        renk2 = rnd.nextFloat() * 0.5f;
-        renk3 = rnd.nextFloat();
-
         Version = "1.1 rc1";
-
         createFonts();
         loadBundle();
-
         setScreen(new LoadingScreen(this));
     }
 

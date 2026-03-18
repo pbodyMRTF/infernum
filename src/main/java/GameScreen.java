@@ -100,11 +100,6 @@ public class GameScreen implements Screen {
     private float bayonetAnimTime = 0f;
     private boolean showBayonetAnim = false;
 
-
-
-
-    private float renk1, renk2, renk3;
-
     private String difficulty;
 
     private int fpsTickCounter = 0;
@@ -114,23 +109,9 @@ public class GameScreen implements Screen {
     private static final float UI_WIDTH     = 1024f;
     private static final float UI_HEIGHT    = 768f;
     private static final float BAYONET_RANGE = 150f;
-
-
-
-    private Controller getGamepad() {
-        if (Controllers.getControllers().size > 0) {
-            return Controllers.getControllers().first();
-        }
-        return null;
-    }
-
     public GameScreen(final Jgame game) {
 
         this.game  = game;
-        this.renk1 = game.renk1;
-        this.renk2 = game.renk2;
-        this.renk3 = game.renk3;
-
         batch         = new SpriteBatch();
         font          = game.getFont(Jgame.FONT_SIZE_32);
         shapeRenderer = new ShapeRenderer();

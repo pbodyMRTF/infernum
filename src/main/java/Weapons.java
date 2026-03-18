@@ -10,9 +10,6 @@ public class Weapons {
     }
     private String gunTexturePath;
     private WeaponType type;
-    private String name;
-    private Texture texture;
-    private Sound shootSound;
     private Float gunScale;
 
     private int fireRateTicks;
