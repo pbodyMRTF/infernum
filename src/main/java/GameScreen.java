@@ -454,7 +454,7 @@ public class GameScreen implements Screen {
                     switch (b.getBulletType()) {
                         case AMMO_SMG:    splatSound.play(); damage = 15; break;
                         case AMMO_PISTOL: tinSound.play(1f); damage = 3;  break;
-                        case AMMO:        tinSound.play(1f); damage = 1;  break;
+                        case AMMO:        tinSound.play(1f); damage = 2;  break;
                     }
                     e.hp -= damage;
                     if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); score++; e.dead = true; }
@@ -468,9 +468,9 @@ public class GameScreen implements Screen {
                 if (!e.dead && checkBulletCollision(e.x, e.y, b.x, b.y)) {
                     int damage = 1;
                     switch (b.getBulletType()) {
-                        case AMMO:        splatSound.play(); damage = 15; break;
-                        case AMMO_SMG:    tinSound.play(1f); damage = 1;  popSound.play(0.2f); break;
-                        case AMMO_PISTOL: tinSound.play(1f); damage = 5;  popSound.play(0.2f); break;
+                        case AMMO:        splatSound.play(); damage = 30; break;
+                        case AMMO_SMG:    tinSound.play(1f); damage = 5;  popSound.play(0.2f); break;
+                        case AMMO_PISTOL: tinSound.play(1f); damage = 14;  popSound.play(0.2f); break;
                     }
                     e.hp -= damage;
                     if (e.hp <= 0) { createTozEffect(e.x, e.y); createBloodEffect(e.x, e.y); popSound.play(0.7f); score++; e.dead = true; }
@@ -484,9 +484,9 @@ public class GameScreen implements Screen {
                 if (!e.dead && checkBulletCollision(e.x, e.y, b.x, b.y)) {
                     float damage = 1;
                     switch (b.getBulletType()) {
-                        case AMMO_PISTOL: splatSound.play(); damage = 8f;   break;
-                        case AMMO_SMG:    tinSound.play(1f); damage = 0.5f; break;
-                        case AMMO:        tinSound.play(1f); damage = 0.3f; break;
+                        case AMMO_PISTOL: splatSound.play(); damage = 8;   break;
+                        case AMMO_SMG:    tinSound.play(1f); damage = 2; break;
+                        case AMMO:        tinSound.play(1f); damage = 1; break;
                     }
                     e.hp -= damage;
                     if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); score++; e.dead = true; }
