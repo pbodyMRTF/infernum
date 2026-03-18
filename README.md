@@ -34,9 +34,9 @@ Each enemy type has one weapon that shreds it — and weapons that barely scratc
 
 | Enemy | Name | Best Weapon | Damage | Other Weapons |
 |-------|------|------------|--------|---------------|
-| Type 1 | Günahkâr *(Sinner)* | **SMG** `[3]` | 15 dmg/bullet | Shotgun: 1 • Pistol: 3 |
-| Type 2 | Zırhlı Robot *(Armored Robot)* | **Shotgun** `[2]` | 15 dmg/bullet | SMG: 1 • Pistol: 5 |
-| Type 3 | Uyuşturucu Bağımlısı *(Addict)* | **Pistol** `[1]` | 8 dmg/bullet | SMG: 0.5 • Shotgun: 0.3 |
+| Type 1 | Günahkâr *(Sinner)* | **SMG** `[3]` | 15 dmg/bullet | Shotgun: 2 • Pistol: 3 |
+| Type 2 | Zırhlı Robot *(Armored Robot)* | **Shotgun** `[2]` | 30 dmg/bullet | SMG: 5 • Pistol: 14 |
+| Type 3 | Uyuşturucu Bağımlısı *(Addict)* | **Pistol** `[1]` | 8 dmg/bullet | SMG: 2 • Shotgun: 1 |
 
 > **Bayonet** (Right click / RB) — instant kill in melee range, works on all types.  
 > Kill 2+ with one swing → **+1 HP regen**. Kill 3+ → **+2 HP regen**.
@@ -113,9 +113,9 @@ Her düşman tipinin bir zayıf noktası var — yanlış silahla çok az hasar 
 
 | Düşman | İsim | En İyi Silah | Hasar | Diğer Silahlar |
 |--------|------|-------------|-------|----------------|
-| Tip 1 | Günahkâr | **SMG** `[3]` | 15 hasar/mermi | Pompalı: 1 • Tabanca: 3 |
-| Tip 2 | Zırhlı Robot | **Pompalı** `[2]` | 15 hasar/mermi | SMG: 1 • Tabanca: 5 |
-| Tip 3 | Uyuşturucu Bağımlısı | **Tabanca** `[1]` | 8 hasar/mermi | SMG: 0.5 • Pompalı: 0.3 |
+| Tip 1 | Günahkâr | **SMG** `[3]` | 15 hasar/mermi | Pompalı: 2 • Tabanca: 3 |
+| Tip 2 | Zırhlı Robot | **Pompalı** `[2]` | 30 hasar/mermi | SMG: 5 • Tabanca: 14 |
+| Tip 3 | Uyuşturucu Bağımlısı | **Tabanca** `[1]` | 8 hasar/mermi | SMG: 2 • Pompalı: 1 |
 
 > **Bayonet** (Sağ tık / RB) — yakın mesafede anlık öldürme, tüm tiplere karşı çalışır.  
 > 1 vuruşta 2+ öldür → **+1 can yenilenir**. 3+ öldür → **+2 can yenilenir**.

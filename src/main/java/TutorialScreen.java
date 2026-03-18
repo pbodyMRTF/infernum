@@ -41,6 +41,13 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport;
  *  - Player hasar alabilir, can bitince phase ilerlemez, ekran kararır.
  *  - Phase geçişleri "SPACE / ENTER / A" ile (waitInput=true) ya da tüm
  *    düşmanlar ölünce otomatik (killDone mantığı).
+ *
+ *  [SYNC] Hasar değerleri GameScreen ile senkronize edildi:
+ *    Enemy1: AMMO(Shotgun) 1→2, AMMO_SMG 15, AMMO_PISTOL 3
+ *    Enemy2: AMMO(Shotgun) 15→30, AMMO_SMG 1→5, AMMO_PISTOL 5→14
+ *    Enemy3: AMMO_SMG 0.5→2, AMMO(Shotgun) 0.3→1, AMMO_PISTOL 8
+ *  [FIX]  renderGame() başına Gdx.gl.glClear() eklendi.
+ *  [FIX]  drawHealthBars() artık batch.end()/begin() ile sarmalanıyor.
  */
 public class TutorialScreen implements Screen {
 
@@ -306,6 +313,7 @@ public class TutorialScreen implements Screen {
             prevButtonA = prevButtonB = false;
         }
     }
+
     private void updatePlayer(float delta) {
         player.update(delta, wallLayer, lowObstacleLayer);
 
@@ -408,30 +416,56 @@ public class TutorialScreen implements Screen {
     }
 
     private void handleBulletEnemyCollision() {
+        // ── Enemy1 ──────────────────────────────────────────────────────────
+        // [SYNC] AMMO (Shotgun): 1 → 2  (GameScreen ile eşleştirildi)
         for (Enemy e : enemies) {
             for (Bullet b : bullets) {
                 if (!e.dead && checkBulletHit(e.x, e.y, b.x, b.y)) {
-                    int dmg = bulletDamageForEnemy1(b.getBulletType());
+                    int dmg;
+                    switch (b.getBulletType()) {
+                        case AMMO_SMG:    splatSound.play();  dmg = 15; break;
+                        case AMMO_PISTOL: tinSound.play(1f);  dmg = 3;  break;
+                        case AMMO:        tinSound.play(1f);  dmg = 2;  break; // [SYNC] 1 → 2
+                        default:                              dmg = 1;  break;
+                    }
                     e.hp -= dmg;
                     if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
                     b.dead = true;
                 }
             }
         }
+
+        // ── Enemy2 ──────────────────────────────────────────────────────────
+        // [SYNC] AMMO (Shotgun): 15 → 30  |  AMMO_SMG: 1 → 5  |  AMMO_PISTOL: 5 → 14
         for (Enemy2 e : enemies2) {
             for (Bullet b : bullets) {
                 if (!e.dead && checkBulletHit(e.x, e.y, b.x, b.y)) {
-                    int dmg = bulletDamageForEnemy2(b.getBulletType());
+                    int dmg;
+                    switch (b.getBulletType()) {
+                        case AMMO:        splatSound.play();                    dmg = 30; break; // [SYNC] 15 → 30
+                        case AMMO_SMG:    tinSound.play(1f); popSound.play(0.2f); dmg = 5;  break; // [SYNC] 1 → 5
+                        case AMMO_PISTOL: tinSound.play(1f); popSound.play(0.2f); dmg = 14; break; // [SYNC] 5 → 14
+                        default:                                                dmg = 1;  break;
+                    }
                     e.hp -= dmg;
                     if (e.hp <= 0) { createTozEffect(e.x, e.y); createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
                     b.dead = true;
                 }
             }
         }
+
+        // ── Enemy3 ──────────────────────────────────────────────────────────
+        // [SYNC] AMMO_SMG: 0.5 → 2  |  AMMO (Shotgun): 0.3 → 1
         for (Enemy3 e : enemies3) {
             for (Bullet b : bullets) {
                 if (!e.dead && checkBulletHit(e.x, e.y, b.x, b.y)) {
-                    float dmg = bulletDamageForEnemy3(b.getBulletType());
+                    float dmg;
+                    switch (b.getBulletType()) {
+                        case AMMO_PISTOL: splatSound.play(); dmg = 8f; break;
+                        case AMMO_SMG:    tinSound.play(1f); dmg = 2f; break; // [SYNC] 0.5 → 2
+                        case AMMO:        tinSound.play(1f); dmg = 1f; break; // [SYNC] 0.3 → 1
+                        default:                             dmg = 1f; break;
+                    }
                     e.hp -= dmg;
                     if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
                     b.dead = true;
@@ -439,10 +473,6 @@ public class TutorialScreen implements Screen {
             }
         }
     }
-
-    private int   bulletDamageForEnemy1(Bullet.BulletType t) { switch(t) { case AMMO_SMG: splatSound.play(); return 15; case AMMO_PISTOL: tinSound.play(1f); return 3; default: tinSound.play(1f); return 1; } }
-    private int   bulletDamageForEnemy2(Bullet.BulletType t) { switch(t) { case AMMO: splatSound.play(); return 15; case AMMO_SMG: tinSound.play(1f); popSound.play(0.2f); return 1; default: tinSound.play(1f); popSound.play(0.2f); return 5; } }
-    private float bulletDamageForEnemy3(Bullet.BulletType t) { switch(t) { case AMMO_PISTOL: splatSound.play(); return 8f; case AMMO_SMG: tinSound.play(1f); return 0.5f; default: tinSound.play(1f); return 0.3f; } }
 
     private boolean checkBulletHit(float ex, float ey, float bx, float by) {
         return Vector2.dst(ex + 32, ey + 32, bx + 4, by + 4) < 36f;
@@ -684,16 +714,18 @@ public class TutorialScreen implements Screen {
         for (int i = tozlar.size   - 1; i >= 0; i--) if (tozlar.get(i).dead)   tozlar.removeIndex(i);
     }
 
-    //RENDER
+    // ── RENDER ────────────────────────────────────────────────────────────────
 
     private void renderGame() {
+        // [FIX] Siyah ekrana temizle (GameScreen ile eşleştirildi)
+        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
         mapRenderer.setView(camera);
         mapRenderer.getBatch().setShader(mapShader);
         if (mapShader.hasUniform("u_time")) mapShader.setUniformf("u_time", shaderTime);
         mapRenderer.render();
         mapRenderer.getBatch().setShader(null);
-
-
 
         batch.setProjectionMatrix(camera.combined);
 
@@ -716,7 +748,7 @@ public class TutorialScreen implements Screen {
             batch.end();
         }
 
-        // Efektler & mermiler & oyuncu
+        // Efektler, mermiler, oyuncu
         batch.setShader(null);
         batch.begin();
         player.draw(batch);
@@ -738,13 +770,10 @@ public class TutorialScreen implements Screen {
         batch.end();
         batch.setShader(null);
 
-        // Can barları (shape renderer, world koordinat)
-        shapeRenderer.setProjectionMatrix(camera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        for (Enemy  e : enemies)  drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
-        for (Enemy2 e : enemies2) drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
-        for (Enemy3 e : enemies3) drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
-        shapeRenderer.end();
+        // [FIX] Can barları — GameScreen'deki gibi batch.end()/begin() ile sarmalandı
+        batch.begin();
+        drawHealthBars();
+        batch.end();
 
         // ── UI katmanı ──
         batch.setProjectionMatrix(uiCamera.combined);
@@ -756,7 +785,25 @@ public class TutorialScreen implements Screen {
         batch.end();
     }
 
-    // ── Can barı ─────────────────────────────────────────────────────────────
+    // ── Can barları ───────────────────────────────────────────────────────────
+
+    /**
+     * [FIX] batch.end() / shapeRenderer / batch.begin() sırası GameScreen ile eşleştirildi.
+     * Çağıran taraf (renderGame) bu metodu batch.begin() bloğu içinde çağırıyor;
+     * burada batch'i kapatıp shape renderer açıyoruz, bitince batch'i yeniden başlatıyoruz.
+     */
+    private void drawHealthBars() {
+        batch.end();
+
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (Enemy  e : enemies)  drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
+        for (Enemy2 e : enemies2) drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
+        for (Enemy3 e : enemies3) drawEnemyBar(e.x, e.y, e.hp, e.maxHp);
+        shapeRenderer.end();
+
+        batch.begin();
+    }
 
     private void drawEnemyBar(float x, float y, int hp, int maxHp) {
         if (hp <= 0) return;
@@ -800,7 +847,6 @@ public class TutorialScreen implements Screen {
     }
 
     private void renderBayonetCooldownBar() {
-        // Bayonet bar için batch'i durdur, shape renderer aç
         batch.end();
 
         shapeRenderer.setProjectionMatrix(uiCamera.combined);
@@ -948,6 +994,13 @@ public class TutorialScreen implements Screen {
         font.setColor(Color.WHITE);
     }
 
+    /**
+     * Hasar tablosunu gösterir.
+     * [SYNC] Değerler GameScreen ile eşleştirildi:
+     *   Enemy1: SMG=15, Shotgun=2, Pistol=3   (en iyi: SMG)
+     *   Enemy2: SMG=5,  Shotgun=30, Pistol=14 (en iyi: Shotgun)
+     *   Enemy3: SMG=2,  Shotgun=1, Pistol=8   (en iyi: Pistol)
+     */
     private void drawDamageTable(int enemyType) {
         String[] silahlar = {
                 game.bundle.get("tutorial.damage.smg"),
@@ -957,14 +1010,14 @@ public class TutorialScreen implements Screen {
         String[] hasarlar;
         int bestIdx;
         switch (enemyType) {
-            case 1:  hasarlar = new String[]{"15", "1",   "3"};  bestIdx = 0; break;
-            case 2:  hasarlar = new String[]{"1",  "15",  "5"};  bestIdx = 1; break;
-            default: hasarlar = new String[]{"0.5","0.3", "8"};  bestIdx = 2; break;
+            case 1:  hasarlar = new String[]{"15", "2",  "3"};  bestIdx = 0; break; // [SYNC] Shotgun 1→2
+            case 2:  hasarlar = new String[]{"5",  "30", "14"}; bestIdx = 1; break; // [SYNC] tüm değerler
+            default: hasarlar = new String[]{"2",  "1",  "8"};  bestIdx = 2; break; // [SYNC] SMG 0.5→2, Shotgun 0.3→1
         }
         Color[] sc = {
                 new Color(0.3f, 0.7f, 1f,  1f),
-                new Color(1f,   0.6f, 0.2f,1f),
-                new Color(0.9f, 0.9f, 0.3f,1f)
+                new Color(1f,   0.6f, 0.2f, 1f),
+                new Color(0.9f, 0.9f, 0.3f, 1f)
         };
         float startY = UI_HEIGHT - 115;
         font.getData().setScale(0.65f);
@@ -973,7 +1026,7 @@ public class TutorialScreen implements Screen {
         for (int i = 0; i < 3; i++) {
             font.setColor(sc[i]);
             font.draw(batch, silahlar[i], 24, startY - i * 22);
-            font.setColor(i == bestIdx ? new Color(0.4f,1f,0.4f,1f) : new Color(0.6f,0.6f,0.6f,1f));
+            font.setColor(i == bestIdx ? new Color(0.4f, 1f, 0.4f, 1f) : new Color(0.6f, 0.6f, 0.6f, 1f));
             font.draw(batch, hasarlar[i] + suffix + (i == bestIdx ? best : ""), 160, startY - i * 22);
         }
         font.getData().setScale(1f);
@@ -983,23 +1036,23 @@ public class TutorialScreen implements Screen {
     private void drawSummary() {
         String[][] rows = {
                 {game.bundle.get("tutorial.summary.enemy1"),   game.bundle.get("tutorial.summary.smg"),          game.bundle.get("tutorial.summary.dmg15")},
-                {game.bundle.get("tutorial.summary.enemy2"),   game.bundle.get("tutorial.summary.shotgun"),       game.bundle.get("tutorial.summary.dmg15")},
+                {game.bundle.get("tutorial.summary.enemy2"),   game.bundle.get("tutorial.summary.shotgun"),       game.bundle.get("tutorial.summary.dmg30")},
                 {game.bundle.get("tutorial.summary.enemy3"),   game.bundle.get("tutorial.summary.pistol"),        game.bundle.get("tutorial.summary.dmg8")},
                 {game.bundle.get("tutorial.summary.bayonet"),  game.bundle.get("tutorial.summary.bayonetAction"), game.bundle.get("tutorial.summary.melee")}
         };
         Color[] sc = {
-                new Color(0.3f,0.7f,1f,1f),
-                new Color(1f,0.6f,0.2f,1f),
-                new Color(0.9f,0.9f,0.3f,1f),
-                new Color(0.9f,0.5f,0.5f,1f)
+                new Color(0.3f, 0.7f, 1f,  1f),
+                new Color(1f,   0.6f, 0.2f, 1f),
+                new Color(0.9f, 0.9f, 0.3f, 1f),
+                new Color(0.9f, 0.5f, 0.5f, 1f)
         };
         float startY = UI_HEIGHT - 100;
         font.getData().setScale(0.7f);
         for (int i = 0; i < rows.length; i++) {
             float y = startY - i * 24;
-            font.setColor(Color.WHITE);       font.draw(batch, rows[i][0],  24,  y);
-            font.setColor(sc[i]);             font.draw(batch, rows[i][1], 100,  y);
-            font.setColor(0.5f,0.9f,0.5f,1f);font.draw(batch, rows[i][2], 280,  y);
+            font.setColor(Color.WHITE);        font.draw(batch, rows[i][0],  24,  y);
+            font.setColor(sc[i]);              font.draw(batch, rows[i][1], 100,  y);
+            font.setColor(0.5f, 0.9f, 0.5f, 1f); font.draw(batch, rows[i][2], 280, y);
         }
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);
@@ -1059,8 +1112,8 @@ public class TutorialScreen implements Screen {
         if (batch         != null) batch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (enemyShader   != null) enemyShader.dispose();
-        if (map != null) map.dispose();
-        if (mapRenderer != null) mapRenderer.dispose();
-        if (mapShader != null) mapShader.dispose();
+        if (map           != null) map.dispose();
+        if (mapRenderer   != null) mapRenderer.dispose();
+        if (mapShader     != null) mapShader.dispose();
     }
 }
