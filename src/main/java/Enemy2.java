@@ -2,7 +2,7 @@ public class Enemy2 {
     float x, y;
     float speed = 100 + (float)Math.random() * 70;
     boolean dead = false;
-    int hp = 15;
+    int hp = 30;
     int maxHp = 15;
 
     public Enemy2(float x, float y) {
