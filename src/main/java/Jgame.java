@@ -22,6 +22,10 @@ public class Jgame extends Game {
     public static final int FONT_SIZE_64 = 64;
 
     public static final int FONT_SIZE_96 = 96;
+    public static final int FONT_SIZE_128 = 128;
+    public static final int FONT_SIZE_144 = 144;
+    public static final int FONT_SIZE_160 = 160;
+    public static final int FONT_SIZE_256 = 256;
 
     private static final String TURKISH_CHARS =
             "aâbcçdefgğhıijklmnoöprsştuüvwxyz" +
@@ -57,7 +61,9 @@ public class Jgame extends Game {
 
         int[] sizes = {
                 FONT_SIZE_8, FONT_SIZE_16, FONT_SIZE_24,
-                FONT_SIZE_32, FONT_SIZE_48, FONT_SIZE_64, FONT_SIZE_96
+                FONT_SIZE_32, FONT_SIZE_48, FONT_SIZE_64,
+                FONT_SIZE_96, FONT_SIZE_128, FONT_SIZE_144,
+                FONT_SIZE_160, FONT_SIZE_256
         };
 
         for (int size : sizes) {

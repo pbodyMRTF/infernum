@@ -56,12 +56,15 @@ public class MainMenuScreen implements Screen {
     private boolean prevStickUp   = false;
     private boolean prevStickDown = false;
 
+
+    private float menuStartX = -150f;
+
     public MainMenuScreen(final Jgame game) {
         this.game = game;
         batch         = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
 
-        fontTitle   = game.getFont(Jgame.FONT_SIZE_96);
+        fontTitle   = game.getFont(Jgame.FONT_SIZE_256);
         fontMenu    = game.getFont(Jgame.FONT_SIZE_32);
         fontVersion = game.getFont(Jgame.FONT_SIZE_16);
 
@@ -104,23 +107,23 @@ public class MainMenuScreen implements Screen {
 
         camera.update();
         shapeRenderer.setProjectionMatrix(camera.combined);
-        drawDecorations();
         drawParticles(delta);
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
-        // Başlık — tam ortalı
+
         fontTitle.getData().setScale(1f + titleScale * 0.04f);
         fontTitle.setColor(1, 0.3f, 0.2f, 1);
         layout.setText(fontTitle, game.bundle.get("menu.title"));
-        float titleX = (VIRTUAL_WIDTH - layout.width) / 2f;
+        float titleX = (VIRTUAL_WIDTH - layout.width) / 2f + 72;
         fontTitle.draw(batch, game.bundle.get("menu.title"), titleX, VIRTUAL_HEIGHT / 2f + 75);
         fontTitle.getData().setScale(1f);
         fontTitle.setColor(1, 1, 1, 1);
 
         // Menü öğeleri
         float menuStartY = VIRTUAL_HEIGHT / 2f;
+
         float spacing    = 50f;
 
         drawMenuItem(game.bundle.get("menu.start"),    menuStartY,               0);
@@ -132,7 +135,7 @@ public class MainMenuScreen implements Screen {
         // Versiyon
         fontVersion.setColor(0.7f, 0.7f, 0.7f, menuAlpha * 0.6f);
         fontVersion.draw(batch,
-                game.bundle.format("menu.version", Jgame.Version), 10, 30);
+                game.bundle.format("menu.version", Jgame.Version), -150, 30);
         fontVersion.setColor(1, 1, 1, 1);
 
         batch.end();
@@ -140,20 +143,13 @@ public class MainMenuScreen implements Screen {
     }
 
     private void drawMenuItem(String label, float y, int index) {
-        // Sadece label'a göre ortala
-        layout.setText(fontMenu, label);
-        float centeredX = (VIRTUAL_WIDTH - layout.width) / 2f;
-
         if (selectedOption == index) {
             fontMenu.setColor(1, 1, 0, menuAlpha * selectionBlink);
-            fontMenu.draw(batch, label, centeredX, y);
-
-            // Oku label'ın soluna ayrıca çiz
-            float arrowX = centeredX - 30f;
-            fontMenu.draw(batch, ">", arrowX, y);
+            fontMenu.draw(batch, "<-", menuStartX + 130f, y); // ok sabit noktada
+            fontMenu.draw(batch, label, menuStartX, y);
         } else {
             fontMenu.setColor(1, 1, 1, menuAlpha);
-            fontMenu.draw(batch, label, centeredX, y);
+            fontMenu.draw(batch, label, menuStartX, y);
         }
         fontMenu.setColor(1, 1, 1, 1);
     }
@@ -181,29 +177,6 @@ public class MainMenuScreen implements Screen {
         shapeRenderer.end();
     }
 
-    private void drawDecorations() {
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.setColor(1, 1, 1, 0.2f);
-        float padding    = 30;
-        float cornerSize = 20;
-        shapeRenderer.rect(padding, padding,
-                VIRTUAL_WIDTH - padding * 2, VIRTUAL_HEIGHT - padding * 2);
-        shapeRenderer.line(padding, VIRTUAL_HEIGHT - padding,
-                padding + cornerSize, VIRTUAL_HEIGHT - padding);
-        shapeRenderer.line(padding, VIRTUAL_HEIGHT - padding,
-                padding, VIRTUAL_HEIGHT - padding - cornerSize);
-        shapeRenderer.line(VIRTUAL_WIDTH - padding, VIRTUAL_HEIGHT - padding,
-                VIRTUAL_WIDTH - padding - cornerSize, VIRTUAL_HEIGHT - padding);
-        shapeRenderer.line(VIRTUAL_WIDTH - padding, VIRTUAL_HEIGHT - padding,
-                VIRTUAL_WIDTH - padding, VIRTUAL_HEIGHT - padding - cornerSize);
-        shapeRenderer.line(padding, padding, padding + cornerSize, padding);
-        shapeRenderer.line(padding, padding, padding, padding + cornerSize);
-        shapeRenderer.line(VIRTUAL_WIDTH - padding, padding,
-                VIRTUAL_WIDTH - padding - cornerSize, padding);
-        shapeRenderer.line(VIRTUAL_WIDTH - padding, padding,
-                VIRTUAL_WIDTH - padding, padding + cornerSize);
-        shapeRenderer.end();
-    }
 
     private void handleInput() {
         Controller c = getGamepad();
