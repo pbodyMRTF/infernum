@@ -209,12 +209,12 @@ public class GameScreen implements Screen {
         player.setBayonetCallback(new Player.BayonetCallback() {
             @Override
             public int onBayonetUse() {
-                return useBayonet();
+                return getBayonetKills();
             }
         });
     }
 
-    private int useBayonet() {
+    private int getBayonetKills() {
         int killedCount = 0;
         sliceSound.play(1.2f);
 
