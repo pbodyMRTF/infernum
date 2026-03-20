@@ -40,7 +40,7 @@ public class Jgame extends Game {
 
     @Override
     public void create() {
-        Version = "1.1 rc1";
+        Version = "1.1 rc2";
         createFonts();
         loadBundle();
         setScreen(new LoadingScreen(this));
