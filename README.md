@@ -8,8 +8,8 @@
 ## 🇬🇧 English
 
 ### Screenshots
-![screenshot](screenshots/2.png)
-![screenshot](screenshots/1.png)
+![screenshot](screenshots/4.png)
+![screenshot](screenshots/3.png)
 
 ---
 
@@ -87,7 +87,7 @@ java -jar build/dist/benim-oyunum-1.0-dist.jar
 ## 🇹🇷 Türkçe
 
 ### Ekran Görüntüleri
-![screenshot](screenshots/2.png)
+![screenshot](screenshots/4tr.png)
 ![screenshot](screenshots/1.png)
 
 ---
