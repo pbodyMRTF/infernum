@@ -424,13 +424,13 @@ public class TutorialScreen implements Screen {
                     int dmg;
                     switch (b.getBulletType()) {
                         case AMMO_SMG:    splatSound.play();  dmg = 15; break;
-                        case AMMO_PISTOL: tinSound.play(1f);  dmg = 3;  break;
-                        case AMMO:        tinSound.play(1f);  dmg = 2;  break; // [SYNC] 1 → 2
+                        case AMMO_PISTOL: tinSound.play(1f);  dmg = 3; b.dead = true;  break;
+                        case AMMO:        tinSound.play(1f);  dmg = 2; b.dead = true;  break; // [SYNC] 1 → 2
                         default:                              dmg = 1;  break;
                     }
                     e.hp -= dmg;
                     if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
-                    b.dead = true;
+
                 }
             }
         }
@@ -443,13 +443,13 @@ public class TutorialScreen implements Screen {
                     int dmg;
                     switch (b.getBulletType()) {
                         case AMMO:        splatSound.play();                    dmg = 30; break; // [SYNC] 15 → 30
-                        case AMMO_SMG:    tinSound.play(1f); popSound.play(0.2f); dmg = 5;  break; // [SYNC] 1 → 5
-                        case AMMO_PISTOL: tinSound.play(1f); popSound.play(0.2f); dmg = 14; break; // [SYNC] 5 → 14
+                        case AMMO_SMG:    tinSound.play(1f); popSound.play(0.2f); dmg = 5;  b.dead = true; break; // [SYNC] 1 → 5
+                        case AMMO_PISTOL: tinSound.play(1f); popSound.play(0.2f); dmg = 14; b.dead = true; break; // [SYNC] 5 → 14
                         default:                                                dmg = 1;  break;
                     }
                     e.hp -= dmg;
                     if (e.hp <= 0) { createTozEffect(e.x, e.y); createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
-                    b.dead = true;
+
                 }
             }
         }
@@ -462,13 +462,13 @@ public class TutorialScreen implements Screen {
                     float dmg;
                     switch (b.getBulletType()) {
                         case AMMO_PISTOL: splatSound.play(); dmg = 8f; break;
-                        case AMMO_SMG:    tinSound.play(1f); dmg = 2f; break; // [SYNC] 0.5 → 2
-                        case AMMO:        tinSound.play(1f); dmg = 1f; break; // [SYNC] 0.3 → 1
+                        case AMMO_SMG:    tinSound.play(1f); dmg = 2f; b.dead = true; break; // [SYNC] 0.5 → 2
+                        case AMMO:        tinSound.play(1f); dmg = 1f; b.dead = true; break; // [SYNC] 0.3 → 1
                         default:                             dmg = 1f; break;
                     }
                     e.hp -= dmg;
                     if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); e.dead = true; }
-                    b.dead = true;
+
                 }
             }
         }
@@ -683,6 +683,7 @@ public class TutorialScreen implements Screen {
         killDone  = false;
 
         if (phase > 13) {
+            dispose();
             game.setScreen(new MainMenuScreen(game));
         }
     }
@@ -717,6 +718,7 @@ public class TutorialScreen implements Screen {
     // ── RENDER ────────────────────────────────────────────────────────────────
 
     private void renderGame() {
+        if (phase > 13) return;
         // [FIX] Siyah ekrana temizle (GameScreen ile eşleştirildi)
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -994,13 +996,6 @@ public class TutorialScreen implements Screen {
         font.setColor(Color.WHITE);
     }
 
-    /**
-     * Hasar tablosunu gösterir.
-     * [SYNC] Değerler GameScreen ile eşleştirildi:
-     *   Enemy1: SMG=15, Shotgun=2, Pistol=3   (en iyi: SMG)
-     *   Enemy2: SMG=5,  Shotgun=30, Pistol=14 (en iyi: Shotgun)
-     *   Enemy3: SMG=2,  Shotgun=1, Pistol=8   (en iyi: Pistol)
-     */
     private void drawDamageTable(int enemyType) {
         String[] silahlar = {
                 game.bundle.get("tutorial.damage.smg"),
@@ -1036,7 +1031,7 @@ public class TutorialScreen implements Screen {
     private void drawSummary() {
         String[][] rows = {
                 {game.bundle.get("tutorial.summary.enemy1"),   game.bundle.get("tutorial.summary.smg"),          game.bundle.get("tutorial.summary.dmg15")},
-                {game.bundle.get("tutorial.summary.enemy2"),   game.bundle.get("tutorial.summary.shotgun"),       game.bundle.get("tutorial.summary.dmg30")},
+                {game.bundle.get("tutorial.summary.enemy2"),   game.bundle.get("tutorial.summary.shotgun"),       game.bundle.get("tutorial.summary.dmg15")},
                 {game.bundle.get("tutorial.summary.enemy3"),   game.bundle.get("tutorial.summary.pistol"),        game.bundle.get("tutorial.summary.dmg8")},
                 {game.bundle.get("tutorial.summary.bayonet"),  game.bundle.get("tutorial.summary.bayonetAction"), game.bundle.get("tutorial.summary.melee")}
         };
