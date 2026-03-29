@@ -30,6 +30,6 @@ public class BloodParticle {
     }
 
     public boolean isDead() {
-        return life <= 0;
+        return dead;
     }
 }
