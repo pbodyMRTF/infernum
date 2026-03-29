@@ -97,7 +97,7 @@ public class CollisionHandler {
             switch (b.getBulletType()) {
                 case AMMO:        splatSound.play(); return 30;
                 case AMMO_SMG:    tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 5;
-                case AMMO_PISTOL: tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 14;
+                case AMMO_PISTOL: tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 9;
             }
         } else if (e instanceof Enemy3) {
             switch (b.getBulletType()) {
