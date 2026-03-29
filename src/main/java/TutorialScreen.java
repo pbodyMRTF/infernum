@@ -24,31 +24,6 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
-/**
- * TutorialScreen — GameScreen mimarisine yakın remaster.
- *
- * Değişiklikler / iyileştirmeler:
- *  - Player nesnesi artık gerçek Player sınıfı (GameScreen ile aynı).
- *  - GameTickManager kullanılıyor (delta-time yerine tick tabanlı zamanlama).
- *  - shootCooldown / hitCooldown / slowdownTimer / deathTimer → TickTimer.
- *  - Weapons sistemi GameScreen ile tamamen aynı.
- *  - Damage tablosu artık Weapons.getDamageAgainst() üzerinden çekiliyor.
- *  - ShaderProgram (red.vsh/red.fsh) düşmanlara uygulanıyor.
- *  - ExtendViewport / iki kamera (world + UI) sistemi.
- *  - Hotbar, can göstergesi, bayonet cooldown bar GameScreen'den birebir.
- *  - Tüm düşmanlar Enemy / Enemy2 / Enemy3 sınıfları üzerinden.
- *  - BloodParticle ve toz efektleri.
- *  - Player hasar alabilir, can bitince phase ilerlemez, ekran kararır.
- *  - Phase geçişleri "SPACE / ENTER / A" ile (waitInput=true) ya da tüm
- *    düşmanlar ölünce otomatik (killDone mantığı).
- *
- *  [SYNC] Hasar değerleri GameScreen ile senkronize edildi:
- *    Enemy1: AMMO(Shotgun) 1→2, AMMO_SMG 15, AMMO_PISTOL 3
- *    Enemy2: AMMO(Shotgun) 15→30, AMMO_SMG 1→5, AMMO_PISTOL 5→14
- *    Enemy3: AMMO_SMG 0.5→2, AMMO(Shotgun) 0.3→1, AMMO_PISTOL 8
- *  [FIX]  renderGame() başına Gdx.gl.glClear() eklendi.
- *  [FIX]  drawHealthBars() artık batch.end()/begin() ile sarmalanıyor.
- */
 public class TutorialScreen implements Screen {
 
     // ── Sabitler ──────────────────────────────────────────────────────────────
@@ -57,7 +32,9 @@ public class TutorialScreen implements Screen {
     private static final float UI_WIDTH       = 1024f;
     private static final float UI_HEIGHT      = 768f;
     private static final float BAYONET_RANGE  = 150f;
-    private static final float KILL_DELAY_SEC = 1.0f;
+
+    private EntityManager entityManager = new EntityManager();
+
 
     private static final int GAMEPAD_BUTTON_A            = 0;
     private static final int GAMEPAD_BUTTON_B            = 1;
@@ -690,9 +667,9 @@ public class TutorialScreen implements Screen {
 
     // ── Spawn yardımcıları ────────────────────────────────────────────────────
 
-    private void spawnEnemy1At(float x, float y) { enemies.add(new Enemy(x, y)); }
-    private void spawnEnemy2At(float x, float y) { enemies2.add(new Enemy2(x, y)); }
-    private void spawnEnemy3At(float x, float y) { enemies3.add(new Enemy3(x, y)); }
+    private void spawnEnemy1At(float x, float y) { entityManager.add(new Enemy(x, y, enemyTex)); }
+    private void spawnEnemy2At(float x, float y) { entityManager.add(new Enemy2(x, y, enemy2Tex)); }
+    private void spawnEnemy3At(float x, float y) { entityManager.add(new Enemy3(x, y, enemy3Tex)); }
 
     private void clearEnemiesAndEffects() {
         enemies.clear();

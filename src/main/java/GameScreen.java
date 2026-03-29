@@ -109,6 +109,8 @@ public class GameScreen implements Screen {
     private static final float UI_WIDTH     = 1024f;
     private static final float UI_HEIGHT    = 768f;
     private static final float BAYONET_RANGE = 150f;
+
+    private EntityManager entityManager = new EntityManager();
     public GameScreen(final Jgame game) {
 
         this.game  = game;
@@ -215,44 +217,21 @@ public class GameScreen implements Screen {
     }
 
     private int getBayonetKills() {
-        int killedCount = 0;
+        int killed = 0;
         sliceSound.play(1.2f);
-
         showBayonetAnim = true;
         bayonetAnimTime = 0f;
         bayonetCooldown.start(tickManager.getCurrentTick());
-
-        for (Enemy e : enemies) {
-            if (!e.dead && isInBayonetRange(e.x, e.y)) {
-                e.dead = true;
-                createBloodEffect(e.x, e.y);
+        for (Entity e : entityManager.getAll()) {
+            if (!e.isDead() && isInBayonetRange(e.getX(), e.getY())) {
+                e.setDead(true);
+                createBloodEffect(e.getX(), e.getY());
                 popSound.play(1f);
                 score++;
-                killedCount++;
+                killed++;
             }
         }
-
-        for (Enemy2 e : enemies2) {
-            if (!e.dead && isInBayonetRange(e.x, e.y)) {
-                e.dead = true;
-                createBloodEffect(e.x, e.y);
-                popSound.play(1f);
-                score++;
-                killedCount++;
-            }
-        }
-
-        for (Enemy3 e : enemies3) {
-            if (!e.dead && isInBayonetRange(e.x, e.y)) {
-                e.dead = true;
-                createBloodEffect(e.x, e.y);
-                popSound.play(1f);
-                score++;
-                killedCount++;
-            }
-        }
-
-        return killedCount;
+        return killed;
     }
 
     private boolean isInBayonetRange(float ex, float ey) {
@@ -289,21 +268,18 @@ public class GameScreen implements Screen {
     private void spawnEnemy() {
         float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
         float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
-
         float spawnX, spawnY;
         int side = game.rnd.nextInt(4);
-
         switch (side) {
             case 0:  spawnX = -50;           spawnY = game.rnd.nextFloat() * mapHeight; break;
             case 1:  spawnX = mapWidth + 50; spawnY = game.rnd.nextFloat() * mapHeight; break;
             case 2:  spawnX = game.rnd.nextFloat() * mapWidth; spawnY = mapHeight + 50; break;
             default: spawnX = game.rnd.nextFloat() * mapWidth; spawnY = -50;            break;
         }
-
-        int enemyType = game.rnd.nextInt(10);
-        if (enemyType < 4)      enemies.add(new Enemy(spawnX, spawnY)); // %40 4/10
-        else if (enemyType < 8) enemies2.add(new Enemy2(spawnX, spawnY));// %40 4/10
-        else                    enemies3.add(new Enemy3(spawnX, spawnY));// %20 2/10
+        int type = game.rnd.nextInt(10);
+        if (type < 4)      entityManager.add(new Enemy(spawnX, spawnY, enemyTex));
+        else if (type < 8) entityManager.add(new Enemy2(spawnX, spawnY, enemy2Tex));
+        else               entityManager.add(new Enemy3(spawnX, spawnY, enemy3Tex));
     }
 
     private void handleEnemySpawn(int currentTick) {
@@ -416,9 +392,7 @@ public class GameScreen implements Screen {
     }
 
     private void updateEnemies(float delta) {
-        for (Enemy  e : enemies)  e.update(delta, player.x, player.y);
-        for (Enemy2 e : enemies2) e.update(delta, player.x, player.y);
-        for (Enemy3 e : enemies3) e.update(delta, player.x, player.y);
+        entityManager.updateAll(delta, player.x, player.y);
     }
 
     private void handleCollisions() {
@@ -426,56 +400,46 @@ public class GameScreen implements Screen {
         handlePlayerEnemyCollision();
         handlePlayerBloodCollision();
     }
+    private int resolveDamage(Entity e, Bullet b) {
+        if (e instanceof Enemy) {
+            switch (b.getBulletType()) {
+                case AMMO_SMG:    splatSound.play(); return 15;
+                case AMMO_PISTOL: tinSound.play(1f); b.dead = true; return 3;
+                case AMMO:        tinSound.play(1f); b.dead = true; return 2;
+            }
+        } else if (e instanceof Enemy2) {
+            switch (b.getBulletType()) {
+                case AMMO:        splatSound.play(); return 30;
+                case AMMO_SMG:    tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 5;
+                case AMMO_PISTOL: tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 14;
+            }
+        } else if (e instanceof Enemy3) {
+            switch (b.getBulletType()) {
+                case AMMO_PISTOL: splatSound.play(); return 8;
+                case AMMO_SMG:    tinSound.play(1f); b.dead = true; return 2;
+                case AMMO:        tinSound.play(1f); b.dead = true; return 1;
+            }
+        }
+        return 1;
+    }
 
     private void handleBulletEnemyCollision() {
-        for (Enemy e : enemies) {
+        for (Entity e : entityManager.getAll()) {
             for (Bullet b : bullets) {
-                if (!e.dead && checkBulletCollision(e.x, e.y, b.x, b.y)) {
-                    int damage = 1;
-                    switch (b.getBulletType()) {
-                        case AMMO_SMG:    splatSound.play(); damage = 15; break;
-                        case AMMO_PISTOL: tinSound.play(1f); damage = 3;  b.dead = true; break;
-                        case AMMO:        tinSound.play(1f); damage = 2;  b.dead = true; break;
+                if (!e.isDead() && checkBulletCollision(e.getX(), e.getY(), b.x, b.y)) {
+                    int damage = resolveDamage(e, b);
+                    e.setHp(e.getHp() - damage);
+                    if (e.getHp() <= 0) {
+                        createBloodEffect(e.getX(), e.getY());
+                        if (e instanceof Enemy2) createTozEffect(e.getX(), e.getY());
+                        popSound.play(0.7f);
+                        score++;
+                        e.setDead(true);
                     }
-                    e.hp -= damage;
-                    if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); score++; e.dead = true; }
-
-                }
-            }
-        }
-
-        for (Enemy2 e : enemies2) {
-            for (Bullet b : bullets) {
-                if (!e.dead && checkBulletCollision(e.x, e.y, b.x, b.y)) {
-                    int damage = 1;
-                    switch (b.getBulletType()) {
-                        case AMMO:        splatSound.play(); damage = 30; break;
-                        case AMMO_SMG:    tinSound.play(1f); damage = 5;  popSound.play(0.2f); b.dead = true; break;
-                        case AMMO_PISTOL: tinSound.play(1f); damage = 14;  popSound.play(0.2f); b.dead = true; break;
-                    }
-                    e.hp -= damage;
-                    if (e.hp <= 0) { createTozEffect(e.x, e.y); createBloodEffect(e.x, e.y); popSound.play(0.7f); score++; e.dead = true; }
-
-                }
-            }
-        }
-
-        for (Enemy3 e : enemies3) {
-            for (Bullet b : bullets) {
-                if (!e.dead && checkBulletCollision(e.x, e.y, b.x, b.y)) {
-                    float damage = 1;
-                    switch (b.getBulletType()) {
-                        case AMMO_PISTOL: splatSound.play(); damage = 8;                       break;
-                        case AMMO_SMG:    tinSound.play(1f); damage = 2; b.dead = true; break;
-                        case AMMO:        tinSound.play(1f); damage = 1; b.dead = true; break;
-                    }
-                    e.hp -= damage;
-                    if (e.hp <= 0) { createBloodEffect(e.x, e.y); popSound.play(0.7f); score++; e.dead = true; }
                 }
             }
         }
     }
-
     private boolean checkBulletCollision(float ex, float ey, float bx, float by) {
         float enemyRadius  = 32;
         float bulletRadius = 4;
@@ -493,10 +457,12 @@ public class GameScreen implements Screen {
 
     private void handlePlayerEnemyCollision() {
         if (player.dead || hitCooldown.isRunning()) return;
-
-        for (Enemy  e : enemies)  { if (checkPlayerCollision(e.x, e.y)) { playerTakeDamage(); return; } }
-        for (Enemy2 e : enemies2) { if (checkPlayerCollision(e.x, e.y)) { playerTakeDamage(); return; } }
-        for (Enemy3 e : enemies3) { if (checkPlayerCollision(e.x, e.y)) { playerTakeDamage(); return; } }
+        for (Entity e : entityManager.getAll()) {
+            if (!e.isDead() && checkPlayerCollision(e.getX(), e.getY())) {
+                playerTakeDamage();
+                return;
+            }
+        }
     }
 
     private boolean checkPlayerCollision(float ex, float ey) {
@@ -537,12 +503,7 @@ public class GameScreen implements Screen {
     }
 
     private void cleanupDeadObjects() {
-        for (int i = enemies.size  - 1; i >= 0; i--) if (enemies.get(i).dead)  enemies.removeIndex(i);
-        for (int i = enemies2.size - 1; i >= 0; i--) if (enemies2.get(i).dead) enemies2.removeIndex(i);
-        for (int i = enemies3.size - 1; i >= 0; i--) if (enemies3.get(i).dead) enemies3.removeIndex(i);
-        for (int i = bullets.size  - 1; i >= 0; i--) if (bullets.get(i).dead)  bullets.removeIndex(i);
-        for (int i = bloods.size   - 1; i >= 0; i--) if (bloods.get(i).dead)   bloods.removeIndex(i);
-        for (int i = tozlar.size   - 1; i >= 0; i--) if (tozlar.get(i).dead)   tozlar.removeIndex(i);
+        entityManager.cleanup();
     }
 
     private void renderGame() {
@@ -607,9 +568,9 @@ public class GameScreen implements Screen {
         batch.begin();
         batch.setShader(shader1);
         if (shader1.hasUniform("u_time")) shader1.setUniformf("u_time", shaderTime);
-        for (Enemy  e : enemies)  batch.draw(enemyTex,  e.x, e.y);
-        for (Enemy2 e : enemies2) batch.draw(enemy2Tex, e.x, e.y);
-        for (Enemy3 e : enemies3) batch.draw(enemy3Tex, e.x, e.y);
+        for (Entity e : entityManager.getAll()) {
+            if (!e.isDead()) batch.draw(e.getTexture(), e.getX(), e.getY());
+        }
         batch.end();
 
         batch.setShader(null);
@@ -675,14 +636,12 @@ public class GameScreen implements Screen {
 
     private void drawHealthBars() {
         batch.end();
-
         shapeRenderer.setProjectionMatrix(camera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        for (Enemy  e : enemies)  drawBar(e.x, e.y, e.hp, e.maxHp);
-        for (Enemy2 e : enemies2) drawBar(e.x, e.y, e.hp, e.maxHp);
-        for (Enemy3 e : enemies3) drawBar(e.x, e.y, e.hp, e.maxHp);
+        for (Entity e : entityManager.getAll()) {
+            if (!e.isDead()) drawBar(e.getX(), e.getY(), e.getHp(), e.getMaxHp());
+        }
         shapeRenderer.end();
-
         batch.begin();
     }
 
