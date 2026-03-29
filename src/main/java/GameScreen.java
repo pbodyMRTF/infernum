@@ -267,26 +267,6 @@ public class GameScreen implements Screen {
         if (hitCooldown.isRunning()   && hitCooldown.isFinished(currentTick))   hitCooldown.stop();
         if (bayonetCooldown.isRunning() && bayonetCooldown.isFinished(currentTick)) bayonetCooldown.stop();
     }
-
-    private void spawnEnemy() {
-        float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
-        float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
-        float spawnX, spawnY;
-        int side = game.rnd.nextInt(4);
-        switch (side) {
-            case 0:  spawnX = -50;           spawnY = game.rnd.nextFloat() * mapHeight; break;
-            case 1:  spawnX = mapWidth + 50; spawnY = game.rnd.nextFloat() * mapHeight; break;
-            case 2:  spawnX = game.rnd.nextFloat() * mapWidth; spawnY = mapHeight + 50; break;
-            default: spawnX = game.rnd.nextFloat() * mapWidth; spawnY = -50;            break;
-        }
-        int type = game.rnd.nextInt(10);
-        if (type < 4)      entityManager.add(new Enemy(spawnX, spawnY, enemyTex));
-        else if (type < 8) entityManager.add(new Enemy2(spawnX, spawnY, enemy2Tex));
-        else               entityManager.add(new Enemy3(spawnX, spawnY, enemy3Tex));
-    }
-
-
-
     @Override
     public void render(float delta) {
         tickManager.update(delta);
