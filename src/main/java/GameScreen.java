@@ -77,7 +77,6 @@ public class GameScreen implements Screen {
     private GameTickManager.TickTimer slowdownTimer;
     private GameTickManager.TickTimer deathTimer;
     private GameTickManager.TickTimer bayonetCooldown;
-    private int lastSpawnTick = 0;
 
     private float baseSpawnInterval;
     private float minSpawnInterval = 0.01f;
@@ -104,6 +103,7 @@ public class GameScreen implements Screen {
     private static final float BAYONET_RANGE = 150f;
 
     private EntityManager entityManager = new EntityManager();
+    private CollisionHandler collisionHandler;
     public GameScreen(final Jgame game) {
         this.game  = game;
         batch         = new SpriteBatch();
@@ -141,6 +141,28 @@ public class GameScreen implements Screen {
                 game.rnd, baseSpawnInterval, minSpawnInterval);
 
         spawnPlayer();
+        collisionHandler = new CollisionHandler(entityManager, bullets, bloods, player,
+                popSound, tinSound, splatSound,
+                new CollisionHandler.CollisionListener() {
+                    @Override
+                    public void onEnemyKilled(Entity e) {
+                        createBloodEffect(e.getX(), e.getY());
+                        if (e instanceof Enemy2) createTozEffect(e.getX(), e.getY());
+                        popSound.play(0.7f);
+                        score++;
+                    }
+                    @Override
+                    public void onPlayerDamaged() {
+                        playerTakeDamage();
+                    }
+                    @Override
+                    public void onPlayerSlowed(BloodParticle b) {
+                        isSlowed = true;
+                        slowdownTimer.start(tickManager.getCurrentTick());
+                        player.slowDown(300);
+                        popSound.play(0.3f);
+                    }
+                });
     }
 
     private void applyDifficultySettings() {
@@ -360,9 +382,7 @@ public class GameScreen implements Screen {
     }
 
     private void handleCollisions() {
-        handleBulletEnemyCollision();
-        handlePlayerEnemyCollision();
-        handlePlayerBloodCollision();
+        collisionHandler.handleAll(hitCooldown.isRunning());
     }
     private int resolveDamage(Entity e, Bullet b) {
         if (e instanceof Enemy) {
@@ -387,53 +407,12 @@ public class GameScreen implements Screen {
         return 1;
     }
 
-    private void handleBulletEnemyCollision() {
-        for (Entity e : entityManager.getAll()) {
-            for (Bullet b : bullets) {
-                if (b.dead) continue;
-                if (!e.isDead() && checkBulletCollision(e.getX(), e.getY(), b.x, b.y)) {
-                    int damage = resolveDamage(e, b);
-                    e.setHp(e.getHp() - damage);
-                    if (e.getHp() <= 0) {
-                        createBloodEffect(e.getX(), e.getY());
-                        if (e instanceof Enemy2) createTozEffect(e.getX(), e.getY());
-                        popSound.play(0.7f);
-                        score++;
-                        e.setDead(true);
-                    }
-                }
-            }
-        }
-    }
-    private boolean checkBulletCollision(float ex, float ey, float bx, float by) {
-        float enemyRadius  = 32;
-        float bulletRadius = 4;
-        float dist = Vector2.dst(ex + enemyRadius, ey + enemyRadius, bx + bulletRadius, by + bulletRadius);
-        return dist < enemyRadius + bulletRadius;
-    }
-
     private void createBloodEffect(float x, float y) {
         for (int i = 0; i < 8; i++) bloods.add(new BloodParticle(x + 32, y + 32, bloodTex));
     }
 
     private void createTozEffect(float x, float y) {
         for (int i = 0; i < 8; i++) tozlar.add(new toz(x + 32, y + 32, tozTex));
-    }
-
-    private void handlePlayerEnemyCollision() {
-        if (player.dead || hitCooldown.isRunning()) return;
-        for (Entity e : entityManager.getAll()) {
-            if (!e.isDead() && checkPlayerCollision(e.getX(), e.getY())) {
-                playerTakeDamage();
-                return;
-            }
-        }
-    }
-
-    private boolean checkPlayerCollision(float ex, float ey) {
-        float r    = 32;
-        float dist = Vector2.dst(ex + r, ey + r, player.getCenterX(), player.getCenterY());
-        return dist < r * 2;
     }
 
     private void playerTakeDamage() {
@@ -449,23 +428,6 @@ public class GameScreen implements Screen {
         }
     }
 
-    private void handlePlayerBloodCollision() {
-        if (player.dead || hitCooldown.isRunning()) return;
-
-        for (BloodParticle b : bloods) {
-            if (b.dead) continue;
-            float bloodRadius  = 4;
-            float playerRadius = 32;
-            float dist = Vector2.dst(b.x + bloodRadius, b.y + bloodRadius, player.getCenterX(), player.getCenterY());
-            if (dist < bloodRadius + playerRadius) {
-                isSlowed = true;
-                slowdownTimer.start(tickManager.getCurrentTick());
-                player.slowDown(300);
-                b.dead = true;
-                popSound.play(0.3f);
-            }
-        }
-    }
 
     private void cleanupDeadObjects() {
         entityManager.cleanup();
