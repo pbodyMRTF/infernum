@@ -144,7 +144,7 @@ public class GameScreen implements Screen {
 
         spawnPlayer();
         hud = new HUD(font, shapeRenderer, heartTex, heartEmptyTex, regenHeartTex,
-                Hotbar1, Hotbar2, Hotbar3, game);
+                Hotbar1, Hotbar2, Hotbar3, game, entityManager, camera, uiCamera);
         collisionHandler = new CollisionHandler(entityManager, bullets, bloods, player,
                 popSound, tinSound, splatSound,
                 new CollisionHandler.CollisionListener() {
@@ -444,7 +444,6 @@ public class GameScreen implements Screen {
         hud.render(batch, player, isSlowed,
                 slowdownTimer.getRemainingSeconds(tickManager.getCurrentTick()),
                 score, bayonetCooldown, tickManager.getCurrentTick());
-        batch.end();
     }
 
     @Override

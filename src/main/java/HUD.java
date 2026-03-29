@@ -1,8 +1,10 @@
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 
 public class HUD {
     private BitmapFont font;
@@ -14,6 +16,9 @@ public class HUD {
     private Texture hotbar2;
     private Texture hotbar3;
     private Jgame game;
+    private EntityManager entityManager;
+    private OrthographicCamera worldCamera;
+    private OrthographicCamera uiCamera;
 
     private static final float UI_WIDTH  = 1024f;
     private static final float UI_HEIGHT = 768f;
@@ -21,7 +26,8 @@ public class HUD {
     public HUD(BitmapFont font, ShapeRenderer shapeRenderer,
                Texture heartTex, Texture heartEmptyTex, Texture regenHeartTex,
                Texture hotbar1, Texture hotbar2, Texture hotbar3,
-               Jgame game) {
+               Jgame game, EntityManager entityManager,
+               OrthographicCamera worldCamera, OrthographicCamera uiCamera) {
         this.font          = font;
         this.shapeRenderer = shapeRenderer;
         this.heartTex      = heartTex;
@@ -31,17 +37,24 @@ public class HUD {
         this.hotbar2       = hotbar2;
         this.hotbar3       = hotbar3;
         this.game          = game;
+        this.entityManager = entityManager;
+        this.worldCamera   = worldCamera;
+        this.uiCamera      = uiCamera;
     }
 
     public void render(SpriteBatch batch, Player player,
                        boolean isSlowed, float slowRemaining,
                        int score, GameTickManager.TickTimer bayonetCooldown,
                        int currentTick) {
+        drawHealthBars(batch);
+        batch.setProjectionMatrix(uiCamera.combined);
+        shapeRenderer.setProjectionMatrix(uiCamera.combined);
+        batch.begin();
         renderUI(batch, isSlowed, slowRemaining, score);
-        drawHealthBars(batch, player);
         renderHotbar(batch, player);
         renderHearts(batch, player);
         renderBayonetCooldownBar(batch, bayonetCooldown, currentTick);
+        batch.end();
     }
 
     private void renderUI(SpriteBatch batch, boolean isSlowed, float slowRemaining, int score) {
@@ -64,11 +77,12 @@ public class HUD {
 
         Texture current = hotbar1;
         if (player != null && player.getWeapon() != null) {
-            switch (player.getWeapon().getType()) {
-                case PISTOL:  current = hotbar1; break;
-                case SHOTGUN: current = hotbar2; break;
-                case SMG:     current = hotbar3; break;
-            }
+            current = switch (player.getWeapon().getType()) {
+                case PISTOL -> hotbar1;
+                case SHOTGUN -> hotbar2;
+                case SMG -> hotbar3;
+                default -> current;
+            };
         }
         batch.draw(current, hotbarX, hotbarY, hotbarWidth, hotbarHeight);
     }
@@ -90,11 +104,28 @@ public class HUD {
         }
     }
 
-    private void drawHealthBars(SpriteBatch batch, Player player) {
+    private void drawHealthBars(SpriteBatch batch) {
         batch.end();
+        shapeRenderer.setProjectionMatrix(worldCamera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (Entity e : entityManager.getAll()) {
+            if (!e.isDead()) drawBar(e.getX(), e.getY(), e.getHp(), e.getMaxHp());
+        }
         shapeRenderer.end();
-        batch.begin();
+    }
+
+    private void drawBar(float x, float y, int hp, int maxHp) {
+        if (hp <= 0) return;
+        float bw = 64f, bh = 7f;
+        float bx = x, by = y + 68f;
+
+        shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.85f);
+        shapeRenderer.rect(bx, by, bw, bh);
+
+        float ratio = MathUtils.clamp((float) hp / maxHp, 0f, 1f);
+        if (ratio > 0.5f) shapeRenderer.setColor(0.2f, 0.85f, 0.2f, 1f);
+        else               shapeRenderer.setColor(0.85f, 0.3f, 0.1f, 1f);
+        shapeRenderer.rect(bx, by, bw * ratio, bh);
     }
 
     private void renderBayonetCooldownBar(SpriteBatch batch, GameTickManager.TickTimer bayonetCooldown, int currentTick) {
@@ -105,6 +136,7 @@ public class HUD {
         float barX      = UI_WIDTH - barWidth - 20;
         float barY      = 40;
 
+        shapeRenderer.setProjectionMatrix(uiCamera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.8f);
         shapeRenderer.rect(barX, barY, barWidth, barHeight);
