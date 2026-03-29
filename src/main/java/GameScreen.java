@@ -104,6 +104,7 @@ public class GameScreen implements Screen {
 
     private EntityManager entityManager = new EntityManager();
     private CollisionHandler collisionHandler;
+    private ShootingHandler shootingHandler;
     public GameScreen(final Jgame game) {
         this.game  = game;
         batch         = new SpriteBatch();
@@ -163,6 +164,13 @@ public class GameScreen implements Screen {
                         popSound.play(0.3f);
                     }
                 });
+        shootingHandler = new ShootingHandler(player, bullets, shootSound, SmgSound, ShotgunSound,
+                camera, new ShootingHandler.ShootingListener() {
+            @Override
+            public void onShoot(GameTickManager.TickTimer newCooldown) {
+                shootCooldown = newCooldown;
+            }
+        });
     }
 
     private void applyDifficultySettings() {
@@ -293,7 +301,7 @@ public class GameScreen implements Screen {
         }
 
         player.update(delta, wallLayer, lowObstacleLayer);
-        handleShooting();
+        shootingHandler.handle(shootCooldown.isRunning(), tickManager.getCurrentTick());
         updateBloodParticles(delta);
         updateToz(delta);
         updateBayonetAnim(delta);
@@ -311,57 +319,7 @@ public class GameScreen implements Screen {
         }
     }
 
-    private void handleShooting() {
-        if (player.dead) return;
-        Weapons w = player.getWeapon();
-        if (w == null) return;
 
-        boolean triggerNow  = player.isTriggerPressed();
-
-        boolean shootInput;
-        if (w.isAutomatic()) {
-            shootInput = Gdx.input.isButtonPressed(Input.Buttons.LEFT) || triggerNow;
-        } else {
-            shootInput = Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
-                    || (triggerNow && !player.prevTriggerFired);
-        }
-
-        player.prevTriggerFired = triggerNow;
-
-        if (shootInput && !shootCooldown.isRunning()) {
-            float baseAngle = player.getAngleToMouse(camera);
-
-            Bullet.BulletType bulletType;
-            switch (w.getType()) {
-                case SHOTGUN:
-                    ShotgunSound.play(0.7f);
-                    bulletType = Bullet.BulletType.AMMO;
-                    break;
-                case SMG:
-                    SmgSound.play(0.7f);
-                    bulletType = Bullet.BulletType.AMMO_SMG;
-                    break;
-                case PISTOL:
-                default:
-                    shootSound.play(0.7f);
-                    bulletType = Bullet.BulletType.AMMO_PISTOL;
-                    break;
-            }
-
-            for (int i = 0; i < w.getBulletCount(); i++) {
-                float spread = MathUtils.random(-w.getBulletSpread(), w.getBulletSpread());
-                bullets.add(new Bullet(
-                        player.getCenterX(),
-                        player.getCenterY(),
-                        baseAngle + spread,
-                        bulletType
-                ));
-            }
-
-            shootCooldown = new GameTickManager.TickTimer(w.getFireRateTicks());
-            shootCooldown.start(tickManager.getCurrentTick());
-        }
-    }
 
     private void updateBloodParticles(float delta) {
         for (BloodParticle blood : bloods) blood.update(delta);
