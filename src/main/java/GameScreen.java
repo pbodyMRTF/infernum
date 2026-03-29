@@ -105,6 +105,7 @@ public class GameScreen implements Screen {
     private EntityManager entityManager = new EntityManager();
     private CollisionHandler collisionHandler;
     private ShootingHandler shootingHandler;
+    private HUD hud;
     public GameScreen(final Jgame game) {
         this.game  = game;
         batch         = new SpriteBatch();
@@ -142,6 +143,8 @@ public class GameScreen implements Screen {
                 game.rnd, baseSpawnInterval, minSpawnInterval);
 
         spawnPlayer();
+        hud = new HUD(font, shapeRenderer, heartTex, heartEmptyTex, regenHeartTex,
+                Hotbar1, Hotbar2, Hotbar3, game);
         collisionHandler = new CollisionHandler(entityManager, bullets, bloods, player,
                 popSound, tinSound, splatSound,
                 new CollisionHandler.CollisionListener() {
@@ -258,7 +261,6 @@ public class GameScreen implements Screen {
         }
         return killed;
     }
-
     private boolean isInBayonetRange(float ex, float ey) {
         float dist = Vector2.dst(ex + 32, ey + 32, player.getCenterX(), player.getCenterY());
         return dist < BAYONET_RANGE;
@@ -311,16 +313,12 @@ public class GameScreen implements Screen {
         cleanupDeadObjects();
         renderGame();
     }
-
     private void updateBayonetAnim(float delta) {
         if (showBayonetAnim) {
             bayonetAnimTime += delta;
             if (bayonetAnimTime >= 0.3f) showBayonetAnim = false;
         }
     }
-
-
-
     private void updateBloodParticles(float delta) {
         for (BloodParticle blood : bloods) blood.update(delta);
     }
@@ -341,28 +339,6 @@ public class GameScreen implements Screen {
 
     private void handleCollisions() {
         collisionHandler.handleAll(hitCooldown.isRunning());
-    }
-    private int resolveDamage(Entity e, Bullet b) {
-        if (e instanceof Enemy) {
-            switch (b.getBulletType()) {
-                case AMMO_SMG:    splatSound.play(); return 15;
-                case AMMO_PISTOL: tinSound.play(1f); b.dead = true; return 3;
-                case AMMO:        tinSound.play(1f); b.dead = true; return 2;
-            }
-        } else if (e instanceof Enemy2) {
-            switch (b.getBulletType()) {
-                case AMMO:        splatSound.play(); return 30;
-                case AMMO_SMG:    tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 5;
-                case AMMO_PISTOL: tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 14;
-            }
-        } else if (e instanceof Enemy3) {
-            switch (b.getBulletType()) {
-                case AMMO_PISTOL: splatSound.play(); return 8;
-                case AMMO_SMG:    tinSound.play(1f); b.dead = true; return 2;
-                case AMMO:        tinSound.play(1f); b.dead = true; return 1;
-            }
-        }
-        return 1;
     }
 
     private void createBloodEffect(float x, float y) {
@@ -463,138 +439,12 @@ public class GameScreen implements Screen {
 
         batch.setShader(null);
         batch.setProjectionMatrix(uiCamera.combined);
-        batch.begin();
-        renderUI();
-        drawHealthBars();
-        renderHotbar();
-        renderHearts();
-        renderBayonetCooldownBar();
-        batch.end();
-    }
-
-    private void renderUI() {
-        font.setColor(Color.WHITE);
-
-        if (isSlowed) {
-            font.getData().setScale(0.8f);
-            float remaining = slowdownTimer.getRemainingSeconds(tickManager.getCurrentTick());
-            font.draw(batch, game.bundle.format("game.ui.slowed", remaining), UI_WIDTH / 2, UI_HEIGHT - 20);
-            font.getData().setScale(1f);
-        }
-        font.getData().setScale(0.9f);
-        font.draw(batch, game.bundle.format("game.ui.score", score), UI_WIDTH / 2, 38);
-        font.getData().setScale(1f);
-    }
-
-    private void renderHotbar() {
-        float hotbarWidth  = 100;
-        float hotbarHeight = 260;
-        float hotbarX      = (UI_WIDTH) + (hotbarWidth / 2);
-        float hotbarY      = (UI_HEIGHT / 2) - (hotbarHeight / 2);
-
-        Texture currentHotbar = Hotbar1;
-
-        if (player != null && player.getWeapon() != null) {
-            switch (player.getWeapon().getType()) {
-                case PISTOL:  currentHotbar = Hotbar1; break;
-                case SHOTGUN: currentHotbar = Hotbar2; break;
-                case SMG:     currentHotbar = Hotbar3; break;
-            }
-        }
-
-        batch.draw(currentHotbar, hotbarX, hotbarY, hotbarWidth, hotbarHeight);
-    }
-
-    private void renderHearts() {
-        int   maxHp    = 3;
-        float heartSize = 64;
-        float startX   = 20;
-        float startY   = UI_HEIGHT - 58;
-
-        for (int i = 0; i < maxHp; i++) {
-            Texture heart;
-            if (i < player.getHp()) {
-                heart = player.isRegenHeart(i) ? regenHeartTex : heartTex;
-            } else {
-                heart = heartEmptyTex;
-            }
-            batch.draw(heart, startX + i * (heartSize + 5), startY, heartSize, heartSize);
-        }
-    }
-
-    private void drawHealthBars() {
-        batch.end();
-        shapeRenderer.setProjectionMatrix(camera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        for (Entity e : entityManager.getAll()) {
-            if (!e.isDead()) drawBar(e.getX(), e.getY(), e.getHp(), e.getMaxHp());
-        }
-        shapeRenderer.end();
-        batch.begin();
-    }
-
-    private void drawBar(float x, float y, int hp, int maxHp) {
-        if (hp <= 0) return;
-        float bw = 64f, bh = 7f;
-        float bx = x, by = y + 68f;
-
-        shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.85f);
-        shapeRenderer.rect(bx, by, bw, bh);
-
-        float ratio = MathUtils.clamp((float) hp / maxHp, 0f, 1f);
-        if (ratio > 0.5f) shapeRenderer.setColor(0.2f, 0.85f, 0.2f, 1f);
-        else               shapeRenderer.setColor(0.85f, 0.3f, 0.1f, 1f);
-        shapeRenderer.rect(bx, by, bw * ratio, bh);
-    }
-
-    private void renderBayonetCooldownBar() {
-        batch.end();
-
         shapeRenderer.setProjectionMatrix(uiCamera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        float barWidth  = 200;
-        float barHeight = 20;
-        float barX      = UI_WIDTH - barWidth - 20;
-        float barY      = 40;
-
-        shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.8f);
-        shapeRenderer.rect(barX, barY, barWidth, barHeight);
-
-        if (bayonetCooldown != null) {
-            float progress = bayonetCooldown.isRunning()
-                    ? bayonetCooldown.getProgress(tickManager.getCurrentTick())
-                    : 1.0f;
-
-            if (progress >= 1.0f) {
-                shapeRenderer.setColor(0.2f, 0.8f, 0.2f, 1.0f);
-            } else {
-                float r = 1.0f - (progress * 0.5f);
-                float g = progress * 0.8f;
-                shapeRenderer.setColor(r, g, 0.1f, 1.0f);
-            }
-            shapeRenderer.rect(barX, barY, barWidth * progress, barHeight);
-        }
-
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.setColor(1f, 1f, 1f, 1f);
-        shapeRenderer.rect(barX, barY, barWidth, barHeight);
-        shapeRenderer.end();
-
         batch.begin();
-
-        font.setColor(Color.WHITE);
-        font.getData().setScale(0.5f);
-        String label = game.bundle.get("game.ui.bayonet");
-        if (bayonetCooldown != null && bayonetCooldown.isRunning()) {
-            label += game.bundle.format("game.ui.bayonet.cooldown",
-                    bayonetCooldown.getRemainingSeconds(tickManager.getCurrentTick()));
-        } else {
-            label += game.bundle.get("game.ui.bayonet.ready");
-        }
-        font.draw(batch, label, barX, barY + barHeight + 18);
-        font.getData().setScale(1f);
+        hud.render(batch, player, isSlowed,
+                slowdownTimer.getRemainingSeconds(tickManager.getCurrentTick()),
+                score, bayonetCooldown, tickManager.getCurrentTick());
+        batch.end();
     }
 
     @Override
