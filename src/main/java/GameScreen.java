@@ -7,10 +7,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
-import com.badlogic.gdx.controllers.Controller;
-import com.badlogic.gdx.controllers.Controllers;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
@@ -19,10 +16,8 @@ import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
-import com.badlogic.gdx.utils.I18NBundle;
 import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
@@ -57,7 +52,6 @@ public class GameScreen implements Screen {
     private TiledMapTileLayer groundLayer;
     private TiledMapTileLayer wallLayer;
     private TiledMapTileLayer lowObstacleLayer;
-    private Texture bulletTex;
     private Texture enemyTex;
     private Texture enemy2Tex;
     private Texture enemy3Tex;
@@ -178,7 +172,7 @@ public class GameScreen implements Screen {
         tinSound     = Assets.getSound(Assets.Sounds.TIN);
         splatSound   = Assets.getSound(Assets.Sounds.SPLAT);
 
-        bulletTex    = Assets.getTexture(Assets.Textures.BULLET);
+
         enemyTex     = Assets.getTexture(Assets.Textures.ENEMY);
         enemy2Tex    = Assets.getTexture(Assets.Textures.ENEMY2);
         enemy3Tex    = Assets.getTexture(Assets.Textures.ENEMY3);
@@ -275,7 +269,6 @@ public class GameScreen implements Screen {
             game.setScreen(new MainMenuScreen(game));
             return;
         }
-
 
         player.update(delta, wallLayer, lowObstacleLayer);
         handleShooting();
