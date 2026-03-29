@@ -79,6 +79,8 @@ public class GameScreen implements Screen {
     private Array<BloodParticle> bloods = new Array<>();
     private Array<toz> tozlar = new Array<>();
 
+    private SpawnManager spawnManager;
+
     private GameTickManager.TickTimer shootCooldown;
     private GameTickManager.TickTimer hitCooldown;
     private GameTickManager.TickTimer slowdownTimer;
@@ -112,7 +114,6 @@ public class GameScreen implements Screen {
 
     private EntityManager entityManager = new EntityManager();
     public GameScreen(final Jgame game) {
-
         this.game  = game;
         batch         = new SpriteBatch();
         font          = game.getFont(Jgame.FONT_SIZE_32);
@@ -137,13 +138,16 @@ public class GameScreen implements Screen {
             }
         });
 
-        shootCooldown  = new GameTickManager.TickTimer(shootCooldownTicks);
-        hitCooldown    = new GameTickManager.TickTimer(hitCooldownTicks);
-        slowdownTimer  = new GameTickManager.TickTimer(slowdownTicks);
-        deathTimer     = new GameTickManager.TickTimer(deathDelayTicks);
+        shootCooldown   = new GameTickManager.TickTimer(shootCooldownTicks);
+        hitCooldown     = new GameTickManager.TickTimer(hitCooldownTicks);
+        slowdownTimer   = new GameTickManager.TickTimer(slowdownTicks);
+        deathTimer      = new GameTickManager.TickTimer(deathDelayTicks);
         bayonetCooldown = new GameTickManager.TickTimer(bayonetCooldownTicks);
 
         loadAssets();
+
+        spawnManager = new SpawnManager(entityManager, enemyTex, enemy2Tex, enemy3Tex,
+                game.rnd, baseSpawnInterval, minSpawnInterval);
 
         spawnPlayer();
     }
@@ -242,8 +246,7 @@ public class GameScreen implements Screen {
     private void handleTick(int currentTick) {
         fpsTickCounter++;
         if (fpsTickCounter >= 20) fpsTickCounter = 0;
-
-        handleEnemySpawn(currentTick);
+        spawnManager.handleEnemySpawn(currentTick, score, tickManager);
         checkAndStopTimers(currentTick);
     }
 
@@ -282,15 +285,6 @@ public class GameScreen implements Screen {
         else               entityManager.add(new Enemy3(spawnX, spawnY, enemy3Tex));
     }
 
-    private void handleEnemySpawn(int currentTick) {
-        float currentSpawnInterval = Math.max(minSpawnInterval, baseSpawnInterval - (score * 0.01f));
-        int spawnIntervalTicks = (int)(currentSpawnInterval * 20);
-
-        if (tickManager.hasTicksPassed(lastSpawnTick, spawnIntervalTicks)) {
-            spawnEnemy();
-            lastSpawnTick = currentTick;
-        }
-    }
 
 
     @Override
@@ -426,6 +420,7 @@ public class GameScreen implements Screen {
     private void handleBulletEnemyCollision() {
         for (Entity e : entityManager.getAll()) {
             for (Bullet b : bullets) {
+                if (b.dead) continue;
                 if (!e.isDead() && checkBulletCollision(e.getX(), e.getY(), b.x, b.y)) {
                     int damage = resolveDamage(e, b);
                     e.setHp(e.getHp() - damage);
@@ -504,6 +499,9 @@ public class GameScreen implements Screen {
 
     private void cleanupDeadObjects() {
         entityManager.cleanup();
+        for (int i = bloods.size - 1; i >= 0; i--) if (bloods.get(i).dead) bloods.removeIndex(i);
+        for (int i = tozlar.size - 1; i >= 0; i--) if (tozlar.get(i).dead) tozlar.removeIndex(i);
+        for (int i = bullets.size - 1; i >= 0; i--) if (bullets.get(i).dead) bullets.removeIndex(i);
     }
 
     private void renderGame() {
@@ -732,6 +730,8 @@ public class GameScreen implements Screen {
         wallLayer        = (TiledMapTileLayer) map.getLayers().get("dk2");
         lowObstacleLayer = (TiledMapTileLayer) map.getLayers().get("dk3");
         renderer = new OrthogonalTiledMapRenderer(map, 3f);
+
+        spawnManager.setGroundLayer(groundLayer);
     }
 
     @Override
