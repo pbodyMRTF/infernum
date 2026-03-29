@@ -73,9 +73,6 @@ public class GameScreen implements Screen {
     private Texture Hotbar3;
 
     private Array<Bullet> bullets = new Array<>();
-    private Array<Enemy> enemies = new Array<>();
-    private Array<Enemy2> enemies2 = new Array<>();
-    private Array<Enemy3> enemies3 = new Array<>();
     private Array<BloodParticle> bloods = new Array<>();
     private Array<toz> tozlar = new Array<>();
 
