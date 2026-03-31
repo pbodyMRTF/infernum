@@ -105,7 +105,6 @@ public class HUD {
     }
 
     private void drawHealthBars(SpriteBatch batch) {
-        batch.end();
         shapeRenderer.setProjectionMatrix(worldCamera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         for (Entity e : entityManager.getAll()) {
