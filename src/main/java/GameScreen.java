@@ -44,7 +44,7 @@ public class GameScreen implements Screen {
     private Sound splatSound;
 
     private TiledMap map;
-    private OrthogonalTiledMapRenderer renderer;
+    private OrthogonalTiledMapRenderer mapRenderer;
     private OrthographicCamera camera;
     private OrthographicCamera uiCamera;
     private ExtendViewport viewport;
@@ -106,6 +106,8 @@ public class GameScreen implements Screen {
     private CollisionHandler collisionHandler;
     private ShootingHandler shootingHandler;
     private HUD hud;
+    private Renderer renderer;
+
     public GameScreen(final Jgame game) {
         this.game  = game;
         batch         = new SpriteBatch();
@@ -292,6 +294,7 @@ public class GameScreen implements Screen {
     }
     @Override
     public void render(float delta) {
+        if (renderer == null || groundLayer == null) return;
         tickManager.update(delta);
         shaderTime += delta;
 
@@ -371,77 +374,8 @@ public class GameScreen implements Screen {
     }
 
     private void renderGame() {
-        Gdx.gl.glClearColor(0, 0, 0, 1);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
-        camera.position.set(player.getCenterX(), player.getCenterY(), 0);
-
-        float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
-        float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
-
-        camera.position.x = MathUtils.clamp(camera.position.x, viewport.getWorldWidth()  / 2, mapWidth  - viewport.getWorldWidth()  / 2);
-        camera.position.y = MathUtils.clamp(camera.position.y, viewport.getWorldHeight() / 2, mapHeight - viewport.getWorldHeight() / 2);
-
-        camera.update();
-
-        renderer.setView(camera);
-        renderer.getBatch().setShader(mapShader);
-        if (mapShader.hasUniform("u_time"))       mapShader.setUniformf("u_time", shaderTime);
-        if (mapShader.hasUniform("u_resolution")) mapShader.setUniformf("u_resolution", Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        renderer.render();
-        renderer.getBatch().setShader(null);
-
-        if (showBayonetAnim) {
-            batch.setProjectionMatrix(camera.combined);
-            batch.begin();
-
-            float bicakBoyutuX    = 16f;
-            float bicakBoyutuY    = 32f;
-            float yorungeUzakligi = 60f;
-            float rotation        = (bayonetAnimTime / 0.3f) * 360f * 1.5f;
-            float alpha           = 1f - (bayonetAnimTime / 0.3f);
-            batch.setColor(1f, 1f, 1f, alpha);
-
-            float drawX    = player.getCenterX() + MathUtils.cosDeg(rotation) * yorungeUzakligi;
-            float drawY    = player.getCenterY() + MathUtils.sinDeg(rotation) * yorungeUzakligi;
-            float sabitAci = -90f;
-
-            batch.draw(bayonetTex,
-                    drawX - (bicakBoyutuX / 2), drawY - (bicakBoyutuY / 2),
-                    bicakBoyutuX / 2, bicakBoyutuY / 2,
-                    bicakBoyutuX, bicakBoyutuY,
-                    1f, 1f,
-                    rotation + sabitAci,
-                    0, 0, bayonetTex.getWidth(), bayonetTex.getHeight(),
-                    false, false);
-
-            batch.setColor(Color.WHITE);
-            batch.end();
-        }
-
-        batch.setProjectionMatrix(camera.combined);
-        batch.setShader(null);
-        batch.begin();
-        player.draw(batch);
-        player.drawGun(batch, camera);
-        for (Bullet      b : bullets) batch.draw(b.getTexture(), b.x, b.y);
-        for (BloodParticle b : bloods) batch.draw(bloodTex, b.x, b.y);
-        for (toz         t : tozlar)  batch.draw(tozTex, t.x, t.y);
-        batch.end();
-
-        batch.begin();
-        batch.setShader(shader1);
-        if (shader1.hasUniform("u_time")) shader1.setUniformf("u_time", shaderTime);
-        for (Entity e : entityManager.getAll()) {
-            if (!e.isDead()) batch.draw(e.getTexture(), e.getX(), e.getY());
-        }
-        batch.end();
-
-        batch.setShader(null);
-        batch.setProjectionMatrix(uiCamera.combined);
-        shapeRenderer.setProjectionMatrix(uiCamera.combined);
-        batch.begin();
-        hud.render(batch, player, isSlowed,
+        renderer.render(shaderTime, player, bullets, bloods, tozlar,
+                showBayonetAnim, bayonetAnimTime, isSlowed,
                 slowdownTimer.getRemainingSeconds(tickManager.getCurrentTick()),
                 score, bayonetCooldown, tickManager.getCurrentTick());
     }
@@ -468,9 +402,13 @@ public class GameScreen implements Screen {
         groundLayer      = (TiledMapTileLayer) map.getLayers().get(0);
         wallLayer        = (TiledMapTileLayer) map.getLayers().get("dk2");
         lowObstacleLayer = (TiledMapTileLayer) map.getLayers().get("dk3");
-        renderer = new OrthogonalTiledMapRenderer(map, 3f);
+        mapRenderer      = new OrthogonalTiledMapRenderer(map, 3f);
 
         spawnManager.setGroundLayer(groundLayer);
+
+        renderer = new Renderer(batch, camera, uiCamera, viewport, mapRenderer,
+                shader1, mapShader, groundLayer, entityManager,
+                bloodTex, tozTex, bayonetTex, hud);
     }
 
     @Override
@@ -487,11 +425,11 @@ public class GameScreen implements Screen {
 
     @Override
     public void dispose() {
-        if (shader1 != null) shader1.dispose();
-        if (mapShader != null) mapShader.dispose();
-        if (batch         != null) batch.dispose();
+        if (shader1    != null) shader1.dispose();
+        if (mapShader  != null) mapShader.dispose();
+        if (batch      != null) batch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
-        if (renderer != null) renderer.dispose();
-        if (map      != null) map.dispose();
+        if (mapRenderer   != null) mapRenderer.dispose();
+        if (map           != null) map.dispose();
     }
 }
