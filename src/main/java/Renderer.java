@@ -14,7 +14,6 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport;
 public class Renderer {
     private SpriteBatch batch;
     private OrthographicCamera camera;
-    private OrthographicCamera uiCamera;
     private ExtendViewport viewport;
     private OrthogonalTiledMapRenderer mapRenderer;
     private ShaderProgram shader1;
@@ -33,7 +32,6 @@ public class Renderer {
                     Texture bloodTex, Texture tozTex, Texture bayonetTex, HUD hud) {
         this.batch         = batch;
         this.camera        = camera;
-        this.uiCamera      = uiCamera;
         this.viewport      = viewport;
         this.mapRenderer   = mapRenderer;
         this.shader1       = shader1;
@@ -44,10 +42,6 @@ public class Renderer {
         this.tozTex        = tozTex;
         this.bayonetTex    = bayonetTex;
         this.hud           = hud;
-    }
-
-    public void setGroundLayer(TiledMapTileLayer groundLayer) {
-        this.groundLayer = groundLayer;
     }
 
     public void render(float shaderTime, Player player,
