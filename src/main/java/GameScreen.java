@@ -1,6 +1,7 @@
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -289,6 +290,14 @@ public class GameScreen implements Screen {
         if (hitCooldown.isRunning()   && hitCooldown.isFinished(currentTick))   hitCooldown.stop();
         if (bayonetCooldown.isRunning() && bayonetCooldown.isFinished(currentTick)) bayonetCooldown.stop();
     }
+    private Texture takeScreenshot() {
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        Pixmap pixmap = Pixmap.createFromFrameBuffer(0, 0, w, h);
+        Texture tex = new Texture(pixmap);
+        pixmap.dispose();
+        return tex;
+    }
     @Override
     public void render(float delta) {
         if (renderer == null || groundLayer == null) return;
@@ -298,7 +307,8 @@ public class GameScreen implements Screen {
         if (Gdx.input.isKeyPressed(Input.Keys.Q)) Gdx.app.exit();
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            game.setScreen(new MainMenuScreen(game));
+            Texture snapshot = takeScreenshot();
+            game.setScreen(new PauseScreen(game, this, snapshot));
             return;
         }
 
