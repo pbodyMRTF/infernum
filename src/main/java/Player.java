@@ -207,7 +207,7 @@ public class Player {
         if (dead) return;
         if (hitCooldown != null && hitCooldown.isRunning()) return;
 
-        hitSound.play(0.9f);
+
         hp -= amount;
         if (hp <= 0) {
             hp   = 0;

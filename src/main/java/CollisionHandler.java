@@ -11,6 +11,8 @@ public class CollisionHandler {
     private Sound tinSound;
     private Sound splatSound;
     private CollisionListener listener;
+    private boolean damageCalledThisFrame = false;
+
 
     public interface CollisionListener {
         void onEnemyKilled(Entity e);
@@ -32,12 +34,13 @@ public class CollisionHandler {
         this.listener      = listener;
     }
 
+
     public void handleAll(boolean hitCooldownRunning) {
+        damageCalledThisFrame = false;
         handleBulletEnemy();
         handlePlayerEnemy(hitCooldownRunning);
         handlePlayerBlood(hitCooldownRunning);
     }
-
     private void handleBulletEnemy() {
         for (Entity e : entityManager.getAll()) {
             for (Bullet b : bullets) {
@@ -55,9 +58,10 @@ public class CollisionHandler {
     }
 
     private void handlePlayerEnemy(boolean hitCooldownRunning) {
-        if (player.dead || hitCooldownRunning) return;
+        if (player.dead || hitCooldownRunning || damageCalledThisFrame) return;
         for (Entity e : entityManager.getAll()) {
             if (!e.isDead() && checkPlayerCollision(e.getX(), e.getY())) {
+                damageCalledThisFrame = true;
                 listener.onPlayerDamaged();
                 return;
             }

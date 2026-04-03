@@ -164,7 +164,7 @@ public class GameScreen implements Screen {
                         isSlowed = true;
                         slowdownTimer.start(tickManager.getCurrentTick());
                         player.slowDown(300);
-                        popSound.play(0.3f);
+
                     }
                 });
         shootingHandler = new ShootingHandler(player, bullets, shootSound, SmgSound, ShotgunSound,
