@@ -112,11 +112,15 @@ public class Renderer {
     }
 
     private void renderEnemies(float shaderTime) {
-        batch.begin();
         batch.setShader(shader1);
+        batch.begin();
         if (shader1.hasUniform("u_time")) shader1.setUniformf("u_time", shaderTime);
         for (Entity e : entityManager.getAll()) {
-            if (!e.isDead()) batch.draw(e.getTexture(), e.getX(), e.getY());
+            if (e.isDead()) continue;  // ölüyse atla
+            if (shader1.hasUniform("u_health")) {
+                shader1.setUniformf("u_health", e.getHp() / e.getMaxHp());
+            }
+            batch.draw(e.getTexture(), e.getX(), e.getY());
         }
         batch.end();
         batch.setShader(null);

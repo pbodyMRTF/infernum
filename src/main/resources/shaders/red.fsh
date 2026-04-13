@@ -7,23 +7,31 @@ varying vec4 v_color;
 
 uniform sampler2D u_texture;
 uniform float u_time;
+uniform float u_health;
 
 void main() {
     vec4 texColor = texture2D(u_texture, v_texCoords);
 
-    // Nabız efekti - zamanla parlaklık değişimi
+    // Nabız efekti
     float pulse = 0.5 + 0.5 * sin(u_time * 4.0);
 
-    // Kenar parlaması
+    // Merkeze uzaklık
     vec2 center = vec2(0.5, 0.5);
     float dist = distance(v_texCoords, center);
-    float glow = 5.0 - smoothstep(0.3, 0.5, dist);
 
-    // Ana renk (kırmızı-turuncu karışımı)
-    vec3 baseColor = vec3(0.9, 0.2 + pulse * 0.2, 0.1);
+    // Glow
+    float glow = 1.0 - smoothstep(0.3, 0.5, dist);
 
-    // Parlaklık efekti
-    vec3 finalColor = baseColor * (1.0 + glow * 0.5 * pulse);
+    // Ana renk
+    float danger = 1.0 - u_health; // az can = daha fazla kırmızı
+    vec3 baseColor = vec3(0.9 + danger * 0.1, 0.2 + pulse * 0.2 - danger * 0.15, 0.1);
 
-    gl_FragColor = vec4(finalColor, texColor.a) * texColor * v_color;
+    // Parlaklık
+    vec3 finalColor = baseColor * (1.0 + glow * 0.9 * pulse);
+
+    // Clamp
+    finalColor = clamp(finalColor, 0.0, 1.0);
+
+
+    gl_FragColor = vec4(finalColor * texColor.rgb, texColor.a) * v_color;
 }
