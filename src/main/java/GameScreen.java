@@ -84,7 +84,7 @@ public class GameScreen implements Screen {
     private int deathDelayTicks = 20;
     private int bayonetCooldownTicks = 60;
 
-    private int score = 0;
+    private static int score = 0;
     private boolean isSlowed = false;
     private boolean deathTimerStarted = false;
     private float bayonetAnimTime = 0f;
@@ -205,7 +205,6 @@ public class GameScreen implements Screen {
         tinSound     = Assets.getSound(Assets.Sounds.TIN);
         splatSound   = Assets.getSound(Assets.Sounds.SPLAT);
 
-
         enemyTex     = Assets.getTexture(Assets.Textures.ENEMY);
         enemy2Tex    = Assets.getTexture(Assets.Textures.ENEMY2);
         enemy3Tex    = Assets.getTexture(Assets.Textures.ENEMY3);
@@ -224,7 +223,6 @@ public class GameScreen implements Screen {
     private void loadConfig() {
         Json json = new Json();
         config          = json.fromJson(GameConfig.class, Gdx.files.internal("config.json"));
-
         this.difficulty  = config.difficulty;
     }
     private void spawnPlayer() {
@@ -275,7 +273,7 @@ public class GameScreen implements Screen {
 
     private void checkAndStopTimers(int currentTick) {
         if (deathTimer.isRunning() && deathTimer.isFinished(currentTick)) {
-            game.setScreen(new MainMenuScreen(game));
+            game.setScreen(new DeathScreen(game, score));
         }
 
         if (slowdownTimer.isRunning() && slowdownTimer.isFinished(currentTick)) {
@@ -424,6 +422,10 @@ public class GameScreen implements Screen {
         uiViewport.update(width, height, true);
         uiCamera.position.set(UI_WIDTH / 2, UI_HEIGHT / 2, 0);
         uiCamera.update();
+    }
+
+    public static int getScore() {
+        return score;
     }
 
     @Override public void pause()  {}
