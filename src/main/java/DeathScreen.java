@@ -1,3 +1,4 @@
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
@@ -263,6 +264,7 @@ public class DeathScreen implements Screen {
 
     @Override
     public void dispose() {
+        GameScreen.setScore(0);
         batch.dispose();
         shapeRenderer.dispose();
     }

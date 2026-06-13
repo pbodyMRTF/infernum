@@ -427,6 +427,10 @@ public class GameScreen implements Screen {
     public static int getScore() {
         return score;
     }
+    public static void setScore(int a){
+        score = a;
+        return;
+    }
 
     @Override public void pause()  {}
     @Override public void resume() {}
