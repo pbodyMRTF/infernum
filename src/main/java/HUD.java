@@ -21,6 +21,7 @@ public class HUD {
     private OrthographicCamera uiCamera;
 
     private Color hudcolor = Color.WHITE;
+    private float hudScale = 1f;
 
     private static final float UI_WIDTH  = 1024f;
     private static final float UI_HEIGHT = 768f;
@@ -62,13 +63,13 @@ public class HUD {
     private void renderUI(SpriteBatch batch, boolean isSlowed, float slowRemaining, int score) {
         font.setColor(hudcolor);
         if (isSlowed) {
-            font.getData().setScale(0.8f);
+            font.getData().setScale(hudScale);
             font.draw(batch, game.bundle.format("game.ui.slowed", slowRemaining), UI_WIDTH / 2, UI_HEIGHT - 20);
-            font.getData().setScale(1f);
+            font.getData().setScale(hudScale);
         }
-        font.getData().setScale(0.9f);
+        font.getData().setScale(hudScale);
         font.draw(batch, game.bundle.format("game.ui.score", score), UI_WIDTH / 2, 38);
-        font.getData().setScale(1f);
+        font.getData().setScale(hudScale);
     }
 
     private void renderHotbar(SpriteBatch batch, Player player) {
@@ -91,9 +92,9 @@ public class HUD {
 
     private void renderHearts(SpriteBatch batch, Player player) {
         int   maxHp    = 3;
-        float heartSize = 64;
+        float heartSize = 64 * hudScale;
         float startX   = 20;
-        float startY   = UI_HEIGHT - 58;
+        float startY   = UI_HEIGHT - 58 * hudScale;
 
         for (int i = 0; i < maxHp; i++) {
             Texture heart;
@@ -132,8 +133,8 @@ public class HUD {
     private void renderBayonetCooldownBar(SpriteBatch batch, GameTickManager.TickTimer bayonetCooldown, int currentTick) {
         batch.end();
 
-        float barWidth  = 200;
-        float barHeight = 20;
+        float barWidth  = 200 * hudScale;
+        float barHeight = 20 * hudScale;
         float barX      = UI_WIDTH - barWidth - 20;
         float barY      = 40;
 
@@ -163,7 +164,7 @@ public class HUD {
 
         batch.begin();
         font.setColor(hudcolor);
-        font.getData().setScale(0.5f);
+        font.getData().setScale(hudScale / 2);
         String label = game.bundle.get("game.ui.bayonet");
         if (bayonetCooldown != null && bayonetCooldown.isRunning()) {
             label += game.bundle.format("game.ui.bayonet.cooldown",
@@ -172,6 +173,6 @@ public class HUD {
             label += game.bundle.get("game.ui.bayonet.ready");
         }
         font.draw(batch, label, barX, barY + barHeight + 18);
-        font.getData().setScale(1f);
+        font.getData().setScale(hudScale);
     }
 }
