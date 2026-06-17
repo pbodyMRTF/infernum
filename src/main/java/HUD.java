@@ -20,6 +20,8 @@ public class HUD {
     private OrthographicCamera worldCamera;
     private OrthographicCamera uiCamera;
 
+    private Color hudcolor = Color.WHITE;
+
     private static final float UI_WIDTH  = 1024f;
     private static final float UI_HEIGHT = 768f;
 
@@ -58,7 +60,7 @@ public class HUD {
     }
 
     private void renderUI(SpriteBatch batch, boolean isSlowed, float slowRemaining, int score) {
-        font.setColor(Color.WHITE);
+        font.setColor(hudcolor);
         if (isSlowed) {
             font.getData().setScale(0.8f);
             font.draw(batch, game.bundle.format("game.ui.slowed", slowRemaining), UI_WIDTH / 2, UI_HEIGHT - 20);
@@ -160,7 +162,7 @@ public class HUD {
         shapeRenderer.end();
 
         batch.begin();
-        font.setColor(Color.WHITE);
+        font.setColor(hudcolor);
         font.getData().setScale(0.5f);
         String label = game.bundle.get("game.ui.bayonet");
         if (bayonetCooldown != null && bayonetCooldown.isRunning()) {
