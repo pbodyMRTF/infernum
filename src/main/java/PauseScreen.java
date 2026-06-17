@@ -205,6 +205,7 @@ public class PauseScreen implements Screen {
 
     @Override
     public void dispose() {
+        GameScreen.setScore(0);
         batch.dispose();
         if (blurShader != null) blurShader.dispose();
         // frozenFrame'i burada dispose etme — GameScreen'e ait olabilir
