@@ -1,3 +1,4 @@
+package io.github.pbodyMRTF.infernum;
 import com.badlogic.gdx.utils.Array;
 
 public class GameTickManager {

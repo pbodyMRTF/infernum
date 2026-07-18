@@ -1,3 +1,4 @@
+package io.github.pbodyMRTF.infernum;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;

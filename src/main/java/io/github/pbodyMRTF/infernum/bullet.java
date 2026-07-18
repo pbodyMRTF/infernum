@@ -1,3 +1,4 @@
+package io.github.pbodyMRTF.infernum;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 

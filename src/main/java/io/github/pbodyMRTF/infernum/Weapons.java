@@ -1,5 +1,4 @@
-import com.badlogic.gdx.audio.Sound;
-import com.badlogic.gdx.graphics.Texture;
+package io.github.pbodyMRTF.infernum;
 
 public class Weapons {
     public enum WeaponType {

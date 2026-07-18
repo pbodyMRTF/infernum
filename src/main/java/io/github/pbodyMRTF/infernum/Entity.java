@@ -1,3 +1,4 @@
+package io.github.pbodyMRTF.infernum;
 public interface Entity {
     void update(float dt, float px, float py);
     float getX();

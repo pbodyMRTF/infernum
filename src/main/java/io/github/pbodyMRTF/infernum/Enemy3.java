@@ -1,3 +1,4 @@
+package io.github.pbodyMRTF.infernum;
 public class Enemy3 implements Entity {
     float x, y;
     float speed = 256 + (float)Math.random() * 128;

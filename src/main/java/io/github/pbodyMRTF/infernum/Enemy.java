@@ -1,12 +1,13 @@
-public class Enemy2 implements Entity {
+package io.github.pbodyMRTF.infernum;
+public class Enemy implements Entity {
     float x, y;
-    float speed = 100 + (float)Math.random() * 70;
+    float speed = 200 + (float)Math.random() * 80;
     boolean dead = false;
-    int hp = 30;
-    int maxHp = 30;
+    int hp = 15;
+    int maxHp = 15;
     private com.badlogic.gdx.graphics.Texture texture;
 
-    public Enemy2(float x, float y, com.badlogic.gdx.graphics.Texture texture) {
+    public Enemy(float x, float y, com.badlogic.gdx.graphics.Texture texture) {
         this.x = x;
         this.y = y;
         this.texture = texture;
