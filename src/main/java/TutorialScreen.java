@@ -667,9 +667,9 @@ public class TutorialScreen implements Screen {
 
     // ── Spawn yardımcıları ────────────────────────────────────────────────────
 
-    private void spawnEnemy1At(float x, float y) { entityManager.add(new Enemy(x, y, enemyTex)); }
-    private void spawnEnemy2At(float x, float y) { entityManager.add(new Enemy2(x, y, enemy2Tex)); }
-    private void spawnEnemy3At(float x, float y) { entityManager.add(new Enemy3(x, y, enemy3Tex)); }
+    private void spawnEnemy1At(float x, float y) { enemies.add(new Enemy(x, y, enemyTex)); }
+    private void spawnEnemy2At(float x, float y) { enemies2.add(new Enemy2(x, y, enemy2Tex)); }
+    private void spawnEnemy3At(float x, float y) { enemies3.add(new Enemy3(x, y, enemy3Tex)); }
 
     private void clearEnemiesAndEffects() {
         enemies.clear();
