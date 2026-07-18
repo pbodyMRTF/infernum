@@ -56,7 +56,7 @@ void main() {
     vec3 baseColor = mix(hellRed, darkOrange, smoke * 0.5);
 
     // Kan efekti ekle
-    baseColor = mix(baseColor, bloodRed, bloodDrip * 0);
+    baseColor = mix(baseColor, bloodRed, bloodDrip * 0.0);
 
     // Texture ile cehennem rengini dengeli karıştır
     vec3 finalColor = texColor.rgb;
