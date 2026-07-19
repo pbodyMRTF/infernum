@@ -183,7 +183,7 @@ public class DevConsole {
                     if (success) {
                         history.add("HUD.hudcolornum changed to " + HUD.hudcolornum);
                     } else {
-                        history.add("Invalid color: " + parts[1] + " (deneyebilecekleriniz: WHITE, BLACK, RED, GREEN, BLUE, YELLOW, ORANGE, PINK, GRAY, CYAN, MAGENTA, PURPLE, BROWN, MAROON, GOLD, OLIVE, LIME, NAVY)");
+                        history.add("Invalid color: " + parts[1] + "\n(deneyebilecekleriniz: WHITE, BLACK, RED, GREEN, BLUE, YELLOW, ORANGE, PINK, GRAY, CYAN, MAGENTA, PURPLE,\nBROWN, MAROON, GOLD, OLIVE, LIME, NAVY)");
                     }
                 } else {
                     history.add("Usage: hud-color <color name>");
