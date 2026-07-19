@@ -135,7 +135,7 @@ public class DevConsole {
 
         switch (cmd) {
             case "help":
-                history.add("Available commands: help, clear, version, startgame, halt, echo");
+                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color");
                 break;
             case "clear":
                 history.clear();
@@ -161,6 +161,35 @@ public class DevConsole {
                     history.add("Usage: echo <text>");
                 }
                 break;
+            case "hud-scale":
+                if (parts.length >= 2) {
+                    try {
+                        float scale = Float.parseFloat(parts[1]);
+                        history.add("HUD.hudScale changed to " + scale);
+                        HUD.hudScale = scale;
+                        if(scale > 2.5 ){
+                            history.add("!!Warning!! any number larger than 2.5 is not recommended.");
+                        }
+                    } catch (NumberFormatException e) {
+                        history.add("Invalid number: " + parts[1]);
+                    }
+                } else {
+                    history.add("Usage: hud_scale <number>");
+                }
+                break;
+            case "hud-color":
+                if (parts.length >= 2) {
+                    boolean success = HUD.setHudColor(parts[1]);
+                    if (success) {
+                        history.add("HUD.hudcolornum changed to " + HUD.hudcolornum);
+                    } else {
+                        history.add("Invalid color: " + parts[1] + " (deneyebilecekleriniz: WHITE, BLACK, RED, GREEN, BLUE, YELLOW, ORANGE, PINK, GRAY, CYAN, MAGENTA, PURPLE, BROWN, MAROON, GOLD, OLIVE, LIME, NAVY)");
+                    }
+                } else {
+                    history.add("Usage: hud-color <color name>");
+                }
+                break;
+
             default:
                 history.add("Unknown command: " + cmd);
                 break;

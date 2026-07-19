@@ -21,8 +21,9 @@ public class HUD {
     private OrthographicCamera worldCamera;
     private OrthographicCamera uiCamera;
 
-    private Color hudcolor = Color.WHITE;
-    private float hudScale = 1f;
+    public static String hudcolornum = "WHITE";
+    private static Color hudcolor = Color.WHITE;
+    public static float hudScale = 1f;
 
     private static final float UI_WIDTH  = 1024f;
     private static final float UI_HEIGHT = 768f;
@@ -129,6 +130,34 @@ public class HUD {
         if (ratio > 0.5f) shapeRenderer.setColor(0.2f, 0.85f, 0.2f, 1f);
         else               shapeRenderer.setColor(0.85f, 0.3f, 0.1f, 1f);
         shapeRenderer.rect(bx, by, bw * ratio, bh);
+    }
+    public static boolean setHudColor(String colorName) {
+        if (colorName == null) return false;
+        Color c = switch (colorName.toUpperCase()) {
+            case "WHITE"        -> Color.WHITE;
+            case "BLACK"        -> Color.BLACK;
+            case "RED"          -> Color.RED;
+            case "GREEN"        -> Color.GREEN;
+            case "BLUE"         -> Color.BLUE;
+            case "YELLOW"       -> Color.YELLOW;
+            case "ORANGE"       -> Color.ORANGE;
+            case "PINK"         -> Color.PINK;
+            case "GRAY", "GREY" -> Color.GRAY;
+            case "CYAN"         -> Color.CYAN;
+            case "MAGENTA"      -> Color.MAGENTA;
+            case "PURPLE"       -> Color.PURPLE;
+            case "BROWN"        -> Color.BROWN;
+            case "MAROON"       -> Color.MAROON;
+            case "GOLD"         -> Color.GOLD;
+            case "OLIVE"        -> Color.OLIVE;
+            case "LIME"         -> Color.LIME;
+            case "NAVY"         -> Color.NAVY;
+            default             -> null;
+        };
+        if (c == null) return false;
+        hudcolor    = c;
+        hudcolornum = colorName.toUpperCase();
+        return true;
     }
 
     private void renderBayonetCooldownBar(SpriteBatch batch, GameTickManager.TickTimer bayonetCooldown, int currentTick) {
