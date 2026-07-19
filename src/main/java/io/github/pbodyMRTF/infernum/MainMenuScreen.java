@@ -57,8 +57,9 @@ public class MainMenuScreen implements Screen {
     private boolean prevStickUp   = false;
     private boolean prevStickDown = false;
 
-
     private float menuStartX = -150f;
+
+    private final DevConsole devConsole;
 
     public MainMenuScreen(final Jgame game) {
         this.game = game;
@@ -75,6 +76,8 @@ public class MainMenuScreen implements Screen {
         camera.update();
 
         initParticles();
+
+        devConsole = new DevConsole(game);
     }
 
     private Controller getGamepad() {
@@ -113,7 +116,6 @@ public class MainMenuScreen implements Screen {
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
-
         fontTitle.getData().setScale(1f + titleScale * 0.04f);
         fontTitle.setColor(1, 0.3f, 0.2f, 1);
         layout.setText(fontTitle, game.bundle.get("menu.title"));
@@ -124,7 +126,6 @@ public class MainMenuScreen implements Screen {
 
         // Menü öğeleri
         float menuStartY = VIRTUAL_HEIGHT / 2f;
-
         float spacing    = 50f;
 
         drawMenuItem(game.bundle.get("menu.start"),    menuStartY,               0);
@@ -140,6 +141,9 @@ public class MainMenuScreen implements Screen {
         fontVersion.setColor(1, 1, 1, 1);
 
         batch.end();
+
+        devConsole.render(delta);
+
         handleInput();
     }
 
@@ -178,8 +182,12 @@ public class MainMenuScreen implements Screen {
         shapeRenderer.end();
     }
 
-
     private void handleInput() {
+        // Console toggle her zaman dinlenir; açıkken menü inputu devre dışı kalır
+        if (devConsole.pollToggle()) {
+            return;
+        }
+
         Controller c = getGamepad();
 
         float   stickY    = (c != null) ? c.getAxis(GAMEPAD_AXIS_LEFT_Y) : 0f;
@@ -232,11 +240,13 @@ public class MainMenuScreen implements Screen {
         camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
         initParticles();
+        devConsole.resize(width, height);
     }
 
     @Override
     public void dispose() {
         batch.dispose();
         shapeRenderer.dispose();
+        devConsole.dispose();
     }
 }
