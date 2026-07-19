@@ -40,7 +40,7 @@ public class DevConsole {
 
     // Tab-complete desteği için bilinen komut listesi
     private static final List<String> COMMAND_NAMES = Arrays.asList(
-            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color"
+            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "speed"
     );
     private List<String> tabMatches = new ArrayList<>();
     private int          tabIndex   = 0;
@@ -189,7 +189,7 @@ public class DevConsole {
 
         switch (cmd) {
             case "help":
-                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color");
+                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, speed");
                 break;
             case "clear":
                 history.clear();
@@ -243,6 +243,19 @@ public class DevConsole {
                     }
                 } else {
                     history.add("Usage: hud-color <color name>");
+                }
+                break;
+            case "speed":
+                if (parts.length >= 2) {
+                    try {
+                        float speed = Float.parseFloat(parts[1]);
+                        history.add("Player speed changed to " + speed);
+                        Player.speedboost = speed;
+                    } catch (NumberFormatException e) {
+                        history.add("Invalid number: " + parts[1]);
+                    }
+                } else {
+                    history.add("Usage: speed <number>");
                 }
                 break;
             default:

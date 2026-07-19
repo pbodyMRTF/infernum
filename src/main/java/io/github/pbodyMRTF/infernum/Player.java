@@ -52,6 +52,8 @@ public class Player {
     private boolean prevButtonB      = false;
     public  boolean prevTriggerFired = false;
 
+    public static float speedboost = 1.0f;
+
     private float gamepadAimAngle = 0f;
 
     public interface BayonetCallback {
@@ -167,10 +169,10 @@ public class Player {
         float moveX = 0;
         float moveY = 0;
 
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) moveY += speed * dt;
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) moveY -= speed * dt;
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) moveX -= speed * dt;
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) moveX += speed * dt;
+        if (Gdx.input.isKeyPressed(Input.Keys.W)) moveY += speed * dt * speedboost;
+        if (Gdx.input.isKeyPressed(Input.Keys.S)) moveY -= speed * dt * speedboost;
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) moveX -= speed * dt * speedboost;
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) moveX += speed * dt * speedboost;
 
         Controller c = getGamepad();
         if (c != null) {
