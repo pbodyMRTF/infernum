@@ -12,25 +12,9 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-/**
- * Full-screen developer console overlay.
- * Toggled with the GRAVE key (the key below Esc, "`" / "~").
- * Owns its own camera/viewport/batch so it can be dropped into any Screen:
- *
- *   private final DevConsole devConsole = new DevConsole(game);
- *
- *   // in handleInput(), before any other input logic:
- *   if (devConsole.pollToggle()) return;
- *
- *   // in render(), after your normal batch.end():
- *   devConsole.render(delta);
- *
- *   // in resize()/dispose():
- *   devConsole.resize(width, height);
- *   devConsole.dispose();
- */
 public class DevConsole {
 
     private final SpriteBatch    batch;
@@ -54,6 +38,14 @@ public class DevConsole {
     private static final int    MAX_VISIBLE_LINES = 18;
     private static final int    MAX_HISTORY_LINES = 300;
 
+    // Tab-complete desteği için bilinen komut listesi
+    private static final List<String> COMMAND_NAMES = Arrays.asList(
+            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color"
+    );
+    private List<String> tabMatches = new ArrayList<>();
+    private int          tabIndex   = 0;
+    private String       tabBase    = "";
+
     private final InputAdapter inputProcessor;
 
     public DevConsole(final Jgame game) {
@@ -73,6 +65,16 @@ public class DevConsole {
 
         inputProcessor = new InputAdapter() {
             @Override
+            public boolean keyDown(int keycode) {
+                // TAB tuşu keyTyped'da görünmez şekilde ele alınmalı (karakter kodu 9, < 32 olduğu için yoksayılıyordu)
+                if (keycode == Input.Keys.TAB) {
+                    handleTabComplete();
+                    return true;
+                }
+                return false;
+            }
+
+            @Override
             public boolean keyTyped(char character) {
                 // The grave/tilde key is reserved for opening/closing the console
                 if (character == '`' || character == '~') {
@@ -81,16 +83,19 @@ public class DevConsole {
                 if (character == '\r' || character == '\n') {
                     executeCommand(inputLine.toString());
                     inputLine.setLength(0);
+                    resetTabState();
                     return true;
                 }
                 if (character == '\b') {
                     if (inputLine.length() > 0) {
                         inputLine.deleteCharAt(inputLine.length() - 1);
                     }
+                    resetTabState();
                     return true;
                 }
                 if (character >= 32 && character < 127) {
                     inputLine.append(character);
+                    resetTabState();
                 }
                 return true;
             }
@@ -123,6 +128,55 @@ public class DevConsole {
         if (open) {
             toggle();
         }
+    }
+
+    /**
+     * TAB tuşuna her basıldığında çağrılır.
+     * - Girdi tek kelimeyse (henüz boşluk yoksa), bilinen komutlar arasından
+     *   o kelimeyle başlayanları bulur.
+     * - Eşleşme tekse doğrudan tamamlar.
+     * - Eşleşme birden fazlaysa, art arda TAB basıldıkça eşleşmeler arasında
+     *   sırayla gezinir (cycle).
+     */
+    private void handleTabComplete() {
+        String current = inputLine.toString();
+
+        boolean continuingCycle = !tabMatches.isEmpty()
+                && current.equalsIgnoreCase(tabMatches.get((tabIndex - 1 + tabMatches.size()) % tabMatches.size()));
+
+        if (!continuingCycle) {
+            // Sadece ilk kelime (komut adı) tamamlanır; argümanlara dokunulmaz
+            String[] parts = current.split("\\s+", -1);
+            if (parts.length > 1) {
+                tabMatches.clear();
+                return;
+            }
+
+            tabBase = parts.length > 0 ? parts[0].toLowerCase() : "";
+            tabMatches = new ArrayList<>();
+            for (String cmd : COMMAND_NAMES) {
+                if (cmd.startsWith(tabBase)) {
+                    tabMatches.add(cmd);
+                }
+            }
+            tabIndex = 0;
+        }
+
+        if (tabMatches.isEmpty()) {
+            return;
+        }
+
+        String chosen = tabMatches.get(tabIndex % tabMatches.size());
+        tabIndex++;
+
+        inputLine.setLength(0);
+        inputLine.append(chosen);
+    }
+
+    private void resetTabState() {
+        tabMatches.clear();
+        tabIndex = 0;
+        tabBase = "";
     }
 
     private void executeCommand(String raw) {
@@ -191,7 +245,6 @@ public class DevConsole {
                     history.add("Usage: hud-color <color name>");
                 }
                 break;
-
             default:
                 history.add("Unknown command: " + cmd);
                 break;
@@ -265,7 +318,7 @@ public class DevConsole {
         fontBody.setColor(1, 1, 1, 1);
 
         fontSmall.setColor(0.6f, 0.6f, 0.6f, 0.6f);
-        fontSmall.draw(batch, "GRAVE: toggle console   ENTER: run command", 50, 20f);
+        fontSmall.draw(batch, "GRAVE: toggle console   ENTER: run command   TAB: autocomplete", 50, 20f);
         fontSmall.setColor(1, 1, 1, 1);
 
         batch.end();
