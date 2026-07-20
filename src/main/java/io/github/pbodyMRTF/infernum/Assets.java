@@ -43,8 +43,8 @@ public class Assets {
         public static final String TIN = "sfx/tin.mp3";
         public static final String SHOTGUNSHOT = "sfx/shotgun.mp3";
         public static final String SMGSHOT = "sfx/smg.mp3";
-
         public static final String SPLAT = "sfx/splat.mp3";
+        public static final String SELECT = "sfx/select.ogg";
     }
 
     public static class Musics {
@@ -85,6 +85,7 @@ public class Assets {
         manager.load(Sounds.SMGSHOT, Sound.class);
 
         manager.load(Sounds.SPLAT, Sound.class);
+        manager.load(Sounds.SELECT, Sound.class);
 
     }
     public static boolean update() {

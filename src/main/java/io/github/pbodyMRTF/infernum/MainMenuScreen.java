@@ -2,6 +2,7 @@ package io.github.pbodyMRTF.infernum;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.controllers.Controllers;
 import com.badlogic.gdx.graphics.Color;
@@ -25,6 +26,8 @@ public class MainMenuScreen implements Screen {
     private BitmapFont fontMenu;
     private BitmapFont fontTitle;
     private BitmapFont fontVersion;
+
+    private Sound Select;
 
     private OrthographicCamera camera;
     private ExtendViewport      viewport;
@@ -76,8 +79,12 @@ public class MainMenuScreen implements Screen {
         camera.update();
 
         initParticles();
+        loadAssets();
 
         devConsole = new DevConsole(game);
+    }
+    private void loadAssets(){
+        Select = Assets.getSound(Assets.Sounds.SELECT);
     }
 
     private Controller getGamepad() {
@@ -204,8 +211,14 @@ public class MainMenuScreen implements Screen {
                 || Gdx.input.isKeyJustPressed(Input.Keys.ENTER)
                 || gamepadJustPressed(c, GAMEPAD_BUTTON_A, prevButtonA);
 
-        if (navigateUp   && selectedOption > 0)                     selectedOption--;
-        if (navigateDown && selectedOption < MENU_OPTION_COUNT - 1) selectedOption++;
+        if (navigateUp && selectedOption > 0) {
+            Select.play();
+            selectedOption--;
+        }
+        if (navigateDown && selectedOption < MENU_OPTION_COUNT - 1) {
+            Select.play();
+            selectedOption++;
+        }
 
         if (confirm) {
             switch (selectedOption) {
