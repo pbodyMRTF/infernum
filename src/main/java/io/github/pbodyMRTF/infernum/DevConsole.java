@@ -40,7 +40,7 @@ public class DevConsole {
 
     // Tab-complete desteği için bilinen komut listesi
     private static final List<String> COMMAND_NAMES = Arrays.asList(
-            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "speed"
+            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "speed", "noclip"
     );
     private List<String> tabMatches = new ArrayList<>();
     private int          tabIndex   = 0;
@@ -189,7 +189,7 @@ public class DevConsole {
 
         switch (cmd) {
             case "help":
-                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, speed");
+                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, speed, noclip");
                 break;
             case "clear":
                 history.clear();
@@ -238,7 +238,7 @@ public class DevConsole {
                         history.add("HUD.hudcolornum changed to " + HUD.hudcolornum);
                     } else {
                         history.add("Invalid color: " + parts[1]);
-                        history.add("(deneyebilecekleriniz: WHITE, BLACK, RED, GREEN, BLUE, YELLOW, ORANGE, PINK, GRAY, CYAN, MAGENTA, PURPLE,");
+                        history.add("(try: WHITE, BLACK, RED, GREEN, BLUE, YELLOW, ORANGE, PINK, GRAY, CYAN, MAGENTA, PURPLE,");
                         history.add("BROWN, MAROON, GOLD, OLIVE, LIME, NAVY)");
                     }
                 } else {
@@ -257,6 +257,16 @@ public class DevConsole {
                 } else {
                     history.add("Usage: speed <number>");
                 }
+                break;
+            case "noclip":
+                if (Player.noclip == false) {
+                    Player.noclip = true;
+                    history.add("Player.noclip = true");
+                } else {
+                    Player.noclip = false;
+                    history.add("Player.noclip = false");
+                }
+
                 break;
             default:
                 history.add("Unknown command: " + cmd);

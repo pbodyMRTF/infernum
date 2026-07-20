@@ -53,6 +53,7 @@ public class Player {
     public  boolean prevTriggerFired = false;
 
     public static float speedboost = 1.0f;
+    public static boolean noclip = false;
 
     private float gamepadAimAngle = 0f;
 
@@ -188,9 +189,14 @@ public class Player {
                 gamepadAimAngle = (float) Math.toDegrees(Math.atan2(-aimY, aimX));
             }
         }
+        if (noclip == false){
+            if (!isBlocked(x + moveX, y, wallLayer, lowObstacleLayer)) x += moveX;
+            if (!isBlocked(x, y + moveY, wallLayer, lowObstacleLayer)) y += moveY;
+        } else {
+            x += moveX;
+            y += moveY;
+        }
 
-        if (!isBlocked(x + moveX, y, wallLayer, lowObstacleLayer)) x += moveX;
-        if (!isBlocked(x, y + moveY, wallLayer, lowObstacleLayer)) y += moveY;
 
         if (wallLayer != null) {
             float mapWidth  = wallLayer.getWidth()  * wallLayer.getTileWidth()  * 3f;
