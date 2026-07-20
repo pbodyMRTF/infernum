@@ -14,6 +14,8 @@ public class CollisionHandler {
     private CollisionListener listener;
     private boolean damageCalledThisFrame = false;
 
+    public static boolean godMode = false;
+
 
     public interface CollisionListener {
         void onEnemyKilled(Entity e);
@@ -59,7 +61,7 @@ public class CollisionHandler {
     }
 
     private void handlePlayerEnemy(boolean hitCooldownRunning) {
-        if (player.dead || hitCooldownRunning || damageCalledThisFrame) return;
+        if (player.dead || hitCooldownRunning || damageCalledThisFrame || godMode) return;
         for (Entity e : entityManager.getAll()) {
             if (!e.isDead() && checkPlayerCollision(e.getX(), e.getY())) {
                 damageCalledThisFrame = true;

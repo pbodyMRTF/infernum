@@ -40,7 +40,7 @@ public class DevConsole {
 
     // Tab-complete desteği için bilinen komut listesi
     private static final List<String> COMMAND_NAMES = Arrays.asList(
-            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "speed", "noclip"
+            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "speed", "noclip", "god"
     );
     private List<String> tabMatches = new ArrayList<>();
     private int          tabIndex   = 0;
@@ -189,7 +189,7 @@ public class DevConsole {
 
         switch (cmd) {
             case "help":
-                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, speed, noclip");
+                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, speed, noclip, god");
                 break;
             case "clear":
                 history.clear();
@@ -267,6 +267,15 @@ public class DevConsole {
                     history.add("Player.noclip = false");
                 }
 
+                break;
+            case "god":
+                if (CollisionHandler.godMode){
+                    CollisionHandler.godMode = false;
+                    history.add("GodMode disabled");
+                } else {
+                    CollisionHandler.godMode = true;
+                    history.add("GodMode enabled");
+                }
                 break;
             default:
                 history.add("Unknown command: " + cmd);
