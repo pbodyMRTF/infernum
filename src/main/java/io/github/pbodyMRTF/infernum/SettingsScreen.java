@@ -2,6 +2,7 @@ package io.github.pbodyMRTF.infernum;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.controllers.Controllers;
 import com.badlogic.gdx.graphics.Color;
@@ -24,6 +25,9 @@ public class SettingsScreen implements Screen {
     private ExtendViewport viewport;
     private static final float VIRTUAL_WIDTH  = 1024f;
     private static final float VIRTUAL_HEIGHT = 768f;
+
+    private Sound Select;
+    private Sound ConfirmSound;
 
     private float menuAlpha     = 0f;
     private float backgroundHue = 0f;
@@ -52,8 +56,13 @@ public class SettingsScreen implements Screen {
         viewport = new ExtendViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, camera);
         camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
+        loadAssets();
 
         refreshOptions();
+    }
+    private void loadAssets(){
+        Select = Assets.getSound(Assets.Sounds.SELECT);
+        ConfirmSound = Assets.getSound(Assets.Sounds.CONFIRM);
     }
 
     // Dil değişince tüm option label'larını yeniden üret
@@ -159,10 +168,19 @@ public class SettingsScreen implements Screen {
         boolean back         = Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)
                 || gamepadJustPressed(c, GAMEPAD_BUTTON_B, prevButtonB);
 
-        if (navigateUp   && selectedOption > 0)                  selectedOption--;
-        if (navigateDown && selectedOption < options.length - 1) selectedOption++;
+
+        if (navigateUp && selectedOption > 0) {
+            Select.play();
+            selectedOption--;
+        }
+        if (navigateDown && selectedOption < options.length - 1) {
+            Select.play();
+            selectedOption++;
+        }
 
         if (confirm) {
+
+            ConfirmSound.play();
             GameConfig config = ConfigManager.getConfig();
 
             switch (selectedOption) {
