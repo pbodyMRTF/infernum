@@ -75,11 +75,21 @@ public class DevConsole {
                     handleTabComplete();
                     return true;
                 }
+                // Ctrl+L: clear the console history
+                if (keycode == Input.Keys.L && (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)
+                        || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT))) {
+                    history.clear();
+                    resetTabState();
+                    return true;
+                }
                 return false;
             }
 
             @Override
             public boolean keyTyped(char character) {
+                if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT)) {
+                    return true; // ignore any control-combo chars here, keyDown handles them
+                }
                 // The grave/tilde key is reserved for opening/closing the console
                 if (character == '`' || character == '~') {
                     return true;
