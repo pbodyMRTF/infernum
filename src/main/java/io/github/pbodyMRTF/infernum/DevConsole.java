@@ -40,8 +40,12 @@ public class DevConsole {
 
     // Tab-complete desteği için bilinen komut listesi
     private static final List<String> COMMAND_NAMES = Arrays.asList(
-            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "speed", "noclip", "god"
+            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "cheats", "speed", "noclip", "god"
     );
+
+
+    private static boolean cheatsEnabled = false;
+
     private List<String> tabMatches = new ArrayList<>();
     private int          tabIndex   = 0;
     private String       tabBase    = "";
@@ -104,6 +108,14 @@ public class DevConsole {
 
     public boolean isOpen() {
         return open;
+    }
+
+    /**
+     * Diğer sistemler (örn. HUD, oyun kuralları) hile durumunu salt-okunur
+     * şekilde sorgulayabilsin diye eklendi.
+     */
+    public static boolean isCheatsEnabled() {
+        return cheatsEnabled;
     }
 
     /**
@@ -189,7 +201,8 @@ public class DevConsole {
 
         switch (cmd) {
             case "help":
-                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, speed, noclip, god");
+                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, cheats, speed,");
+                history.add("noclip, god");
                 break;
             case "clear":
                 history.clear();
@@ -245,7 +258,33 @@ public class DevConsole {
                     history.add("Usage: hud-color <color name>");
                 }
                 break;
+            case "cheats":
+                if (parts.length >= 2) {
+                    String arg = parts[1].toLowerCase();
+                    if (arg.equals("1") || arg.equals("true")) {
+                        cheatsEnabled = true;
+                        history.add("cheats = 1 (Cheats Enabled)");
+                    } else if (arg.equals("0") || arg.equals("false")) {
+                        cheatsEnabled = false;
+
+                        // Reset possibly active cheats
+                        Player.speedboost = 1f;
+                        Player.noclip = false;
+                        CollisionHandler.godMode = false;
+                        history.add("cheats = 0 (Cheats disabled)");
+                    } else {
+                        history.add("Invalid value: " + parts[1] + " (use 0 or 1)");
+                    }
+                } else {
+                    history.add("cheats is currently " + (cheatsEnabled ? "1" : "0"));
+                    history.add("Usage: cheats <0|1>");
+                }
+                break;
             case "speed":
+                if (!cheatsEnabled) {
+                    history.add("Cheats Disabled");
+                    break;
+                }
                 if (parts.length >= 2) {
                     try {
                         float speed = Float.parseFloat(parts[1]);
@@ -259,6 +298,10 @@ public class DevConsole {
                 }
                 break;
             case "noclip":
+                if (!cheatsEnabled) {
+                    history.add("Cheats Disabled");
+                    break;
+                }
                 if (Player.noclip == false) {
                     Player.noclip = true;
                     history.add("Player.noclip = true");
@@ -269,6 +312,10 @@ public class DevConsole {
 
                 break;
             case "god":
+                if (!cheatsEnabled) {
+                    history.add("Cheats Disabled");
+                    break;
+                }
                 if (CollisionHandler.godMode){
                     CollisionHandler.godMode = false;
                     history.add("GodMode disabled");
