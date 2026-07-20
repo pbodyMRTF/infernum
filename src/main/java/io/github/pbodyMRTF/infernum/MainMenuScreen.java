@@ -28,6 +28,7 @@ public class MainMenuScreen implements Screen {
     private BitmapFont fontVersion;
 
     private Sound Select;
+    private Sound ConfirmSound;
 
     private OrthographicCamera camera;
     private ExtendViewport      viewport;
@@ -85,6 +86,7 @@ public class MainMenuScreen implements Screen {
     }
     private void loadAssets(){
         Select = Assets.getSound(Assets.Sounds.SELECT);
+        ConfirmSound = Assets.getSound(Assets.Sounds.CONFIRM);
     }
 
     private Controller getGamepad() {
@@ -221,6 +223,7 @@ public class MainMenuScreen implements Screen {
         }
 
         if (confirm) {
+            ConfirmSound.play();
             switch (selectedOption) {
                 case 0: game.setScreen(new GameScreen(game));     dispose(); break;
                 case 1: game.setScreen(new TutorialScreen(game)); dispose(); break;

@@ -45,6 +45,7 @@ public class Assets {
         public static final String SMGSHOT = "sfx/smg.mp3";
         public static final String SPLAT = "sfx/splat.mp3";
         public static final String SELECT = "sfx/select.ogg";
+        public static final String CONFIRM = "sfx/confirm.ogg";
     }
 
     public static class Musics {
@@ -86,7 +87,7 @@ public class Assets {
 
         manager.load(Sounds.SPLAT, Sound.class);
         manager.load(Sounds.SELECT, Sound.class);
-
+        manager.load(Sounds.CONFIRM, Sound.class);
     }
     public static boolean update() {
         return manager.update();
