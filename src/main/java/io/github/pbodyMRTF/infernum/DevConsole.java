@@ -40,7 +40,7 @@ public class DevConsole {
 
     // Tab-complete desteği için bilinen komut listesi
     private static final List<String> COMMAND_NAMES = Arrays.asList(
-            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "cheats", "speed", "noclip", "god"
+            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "cheats", "speed", "noclip", "god", "sound"
     );
 
 
@@ -211,7 +211,7 @@ public class DevConsole {
 
         switch (cmd) {
             case "help":
-                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, cheats, speed,");
+                history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, cheats, speed, sound");
                 history.add("noclip, god");
                 break;
             case "clear":
@@ -267,6 +267,20 @@ public class DevConsole {
                 } else {
                     history.add("Usage: hud-color <color name>");
                 }
+                break;
+            case "sound":
+                if (parts.length >= 2) {
+                    try {
+                        float sound = Float.parseFloat(parts[1]);
+                        history.add("Sound changed to " + sound);
+                        GameScreen.setMasterSound(sound);
+                    } catch (NumberFormatException e) {
+                        history.add("Invalid number: " + parts[1]);
+                    }
+                } else {
+                    history.add("Usage: hud_scale <number>");
+                }
+
                 break;
             case "cheats":
                 if (parts.length >= 2) {

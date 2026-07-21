@@ -1,4 +1,5 @@
 package io.github.pbodyMRTF.infernum;
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.audio.Sound;
@@ -14,6 +15,7 @@ public class ShootingHandler {
     private Sound shotgunSound;
     private OrthographicCamera camera;
     private ShootingListener listener;
+    private float MasterSound;
 
     public interface ShootingListener {
         void onShoot(GameTickManager.TickTimer newCooldown);
@@ -29,6 +31,10 @@ public class ShootingHandler {
         this.shotgunSound = shotgunSound;
         this.camera       = camera;
         this.listener     = listener;
+
+
+
+        this.MasterSound  = GameScreen.getMasterSound();
     }
 
     public void handle(boolean shootCooldownRunning, int currentTick) {
@@ -53,15 +59,15 @@ public class ShootingHandler {
 
             Bullet.BulletType bulletType = switch (w.getType()) {
                 case SHOTGUN -> {
-                    shotgunSound.play(0.7f);
+                    shotgunSound.play(0.7f * MasterSound);
                     yield Bullet.BulletType.AMMO;
                 }
                 case SMG -> {
-                    smgSound.play(0.7f);
+                    smgSound.play(0.7f * MasterSound);
                     yield Bullet.BulletType.AMMO_SMG;
                 }
                 default -> {
-                    shootSound.play(0.7f);
+                    shootSound.play(0.7f * MasterSound);
                     yield Bullet.BulletType.AMMO_PISTOL;
                 }
             };

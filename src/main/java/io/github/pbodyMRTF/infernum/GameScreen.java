@@ -41,6 +41,7 @@ public class GameScreen implements Screen {
     private Sound sliceSound;
     private Sound tinSound;
     private Sound splatSound;
+    private static float MasterSound = 1f;
 
     private TiledMap map;
     private OrthogonalTiledMapRenderer mapRenderer;
@@ -153,7 +154,7 @@ public class GameScreen implements Screen {
                     public void onEnemyKilled(Entity e) {
                         createBloodEffect(e.getX(), e.getY());
                         if (e instanceof Enemy2) createTozEffect(e.getX(), e.getY());
-                        popSound.play(0.7f);
+                        popSound.play(0.7f * MasterSound);
                         score++;
                     }
                     @Override
@@ -245,7 +246,7 @@ public class GameScreen implements Screen {
 
     private int getBayonetKills() {
         int killed = 0;
-        sliceSound.play(1.2f);
+        sliceSound.play(1.2f * MasterSound);
         showBayonetAnim = true;
         bayonetAnimTime = 0f;
         bayonetCooldown.start(tickManager.getCurrentTick());
@@ -253,7 +254,7 @@ public class GameScreen implements Screen {
             if (!e.isDead() && isInBayonetRange(e.getX(), e.getY())) {
                 e.setDead(true);
                 createBloodEffect(e.getX(), e.getY());
-                popSound.play(1f);
+                popSound.play(1f * MasterSound);
                 score++;
                 killed++;
             }
@@ -362,7 +363,7 @@ public class GameScreen implements Screen {
         for (int i = 0; i < 50; i++) bloods.add(new BloodParticle(player.x + 32, player.y + 32, bloodTex));
 
         player.damage(1);
-        woodSound.play(0.9f);
+        woodSound.play(0.9f * MasterSound);
         hitCooldown.start(tickManager.getCurrentTick());
 
         if (player.dead && !deathTimerStarted) {
@@ -370,6 +371,7 @@ public class GameScreen implements Screen {
             deathTimer.start(tickManager.getCurrentTick());
         }
     }
+
 
 
     private void cleanupDeadObjects() {
@@ -432,6 +434,14 @@ public class GameScreen implements Screen {
         score = a;
         return;
     }
+    public static void setMasterSound(float f){
+        MasterSound = f;
+        return;
+    }
+    public static float getMasterSound(){
+        return MasterSound;
+    }
+
 
     @Override public void pause()  {}
     @Override public void resume() {}

@@ -30,6 +30,8 @@ public class MainMenuScreen implements Screen {
     private Sound Select;
     private Sound ConfirmSound;
 
+    private float MasterSound;
+
     private OrthographicCamera camera;
     private ExtendViewport      viewport;
     private static final float VIRTUAL_WIDTH  = 1024f;
@@ -79,6 +81,7 @@ public class MainMenuScreen implements Screen {
         camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
 
+        this.MasterSound = GameScreen.getMasterSound();
         initParticles();
         loadAssets();
 
@@ -214,16 +217,16 @@ public class MainMenuScreen implements Screen {
                 || gamepadJustPressed(c, GAMEPAD_BUTTON_A, prevButtonA);
 
         if (navigateUp && selectedOption > 0) {
-            Select.play();
+            Select.play(1 * MasterSound);
             selectedOption--;
         }
         if (navigateDown && selectedOption < MENU_OPTION_COUNT - 1) {
-            Select.play();
+            Select.play(1 * MasterSound);
             selectedOption++;
         }
 
         if (confirm) {
-            ConfirmSound.play();
+            ConfirmSound.play(1 * MasterSound);
             switch (selectedOption) {
                 case 0: game.setScreen(new GameScreen(game));     dispose(); break;
                 case 1: game.setScreen(new TutorialScreen(game)); dispose(); break;

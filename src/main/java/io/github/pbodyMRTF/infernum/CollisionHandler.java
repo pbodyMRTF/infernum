@@ -14,6 +14,8 @@ public class CollisionHandler {
     private CollisionListener listener;
     private boolean damageCalledThisFrame = false;
 
+    private float MasterSound;
+
     public static boolean godMode = false;
 
 
@@ -35,6 +37,9 @@ public class CollisionHandler {
         this.tinSound      = tinSound;
         this.splatSound    = splatSound;
         this.listener      = listener;
+
+
+        this.MasterSound   = GameScreen.getMasterSound();
     }
 
 
@@ -96,21 +101,21 @@ public class CollisionHandler {
     private int resolveDamage(Entity e, Bullet b) {
         if (e instanceof Enemy) {
             switch (b.getBulletType()) {
-                case AMMO_SMG:    splatSound.play(); return 15;
-                case AMMO_PISTOL: tinSound.play(1f); b.dead = true; return 3;
-                case AMMO:        tinSound.play(1f); b.dead = true; return 2;
+                case AMMO_SMG:    splatSound.play(1 * MasterSound); return 15;
+                case AMMO_PISTOL: tinSound.play(1f * MasterSound); b.dead = true; return 3;
+                case AMMO:        tinSound.play(1f * MasterSound); b.dead = true; return 2;
             }
         } else if (e instanceof Enemy2) {
             switch (b.getBulletType()) {
-                case AMMO:        splatSound.play(); return 30;
-                case AMMO_SMG:    tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 5;
-                case AMMO_PISTOL: tinSound.play(1f); popSound.play(0.2f); b.dead = true; return 9;
+                case AMMO:        splatSound.play(1 * MasterSound); return 30;
+                case AMMO_SMG:    tinSound.play(1f * MasterSound); popSound.play(0.2f * MasterSound); b.dead = true; return 5;
+                case AMMO_PISTOL: tinSound.play(1f * MasterSound); popSound.play(0.2f * MasterSound); b.dead = true; return 9;
             }
         } else if (e instanceof Enemy3) {
             switch (b.getBulletType()) {
-                case AMMO_PISTOL: splatSound.play(); return 8;
-                case AMMO_SMG:    tinSound.play(1f); b.dead = true; return 2;
-                case AMMO:        tinSound.play(1f); b.dead = true; return 1;
+                case AMMO_PISTOL: splatSound.play(1 * MasterSound); return 8;
+                case AMMO_SMG:    tinSound.play(1f * MasterSound); b.dead = true; return 2;
+                case AMMO:        tinSound.play(1f * MasterSound); b.dead = true; return 1;
             }
         }
         return 1;
