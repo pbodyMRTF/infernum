@@ -2,9 +2,10 @@ package shared;
 
 public class EntitySnapshot {
     public int id;
-    public byte type;                  // 0=Enemy, 1=Enemy2, 2=Enemy3
+    public byte type;
     public float x, y;
     public int hp;
+    public int maxHp;      // ← eklendi
     public boolean dead;
 
     public static final byte TYPE_ENEMY  = 0;

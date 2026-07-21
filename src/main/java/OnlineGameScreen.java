@@ -95,6 +95,15 @@ public class OnlineGameScreen implements Screen {
     // --- Efektler (sadece görsel) ---
     private Array<BloodParticle> bloods = new Array<>();
 
+
+    private static final float TICK_INTERVAL = 1f / 20f;
+
+    private GameState prevState = null;
+    private GameState targetState = null;
+    private float interpTimer = 0f;
+
+    private Texture bulletTex, bulletSmgTex, bulletPistolTex;
+
     public OnlineGameScreen(Jgame game, String serverHost) {
         this.game       = game;
         this.serverHost = serverHost;
@@ -133,6 +142,10 @@ public class OnlineGameScreen implements Screen {
         shotgunSound = Assets.getSound(Assets.Sounds.SHOTGUNSHOT);
         popSound    = Assets.getSound(Assets.Sounds.POP);
         woodSound   = Assets.getSound(Assets.Sounds.WOOD);
+
+        bulletTex        = Assets.getTexture(Assets.Textures.BULLET);
+        bulletSmgTex     = Assets.getTexture(Assets.Textures.BULLET_SMG);
+        bulletPistolTex  = Assets.getTexture(Assets.Textures.BULLET_PISTOL);
     }
 
     private void connectToServer() {
@@ -162,6 +175,7 @@ public class OnlineGameScreen implements Screen {
     @Override
     public void render(float delta) {
         shaderTime += delta;
+        interpTimer += delta;
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             game.setScreen(new MainMenuScreen(game));
@@ -262,18 +276,15 @@ public class OnlineGameScreen implements Screen {
     // State işleme
     // ---------------------------------------------------------------
     private void handleNewState(GameState state) {
-        // Öldü mü?
         if (currentState != null) {
             for (PlayerSnapshot old : currentState.players) {
                 for (PlayerSnapshot neu : state.players) {
                     if (old.playerId == neu.playerId && !old.dead && neu.dead) {
-                        // Ölüm efekti
                         spawnBlood(neu.x + 32, neu.y + 32, 50);
                         woodSound.play(0.9f);
                     }
                 }
             }
-            // Düşman öldü mü?
             for (EntitySnapshot old : currentState.entities) {
                 for (EntitySnapshot neu : state.entities) {
                     if (old.id == neu.id && !old.dead && neu.dead) {
@@ -284,16 +295,13 @@ public class OnlineGameScreen implements Screen {
             }
         }
 
-        currentState = state;
+        // İnterpolasyon için: eski hedef → yeni "önceki", gelen → yeni "hedef"
+        prevState   = (targetState != null) ? targetState : state;
+        targetState = state;
+        interpTimer = 0f;
 
-        // Kamerayı benim oyuncuma kilitle
-        PlayerSnapshot me = getMySnapshot();
-        if (me != null) {
-            camera.position.set(me.x + 32, me.y + 32, 0);
-            camera.update();
-        }
+        currentState = state; // score, game-over kontrolü gibi anlık şeyler için
 
-        // Game over kontrolü
         boolean allDead = state.players.stream().allMatch(p -> p.dead);
         if (allDead) {
             game.setScreen(new MainMenuScreen(game));
@@ -314,54 +322,116 @@ public class OnlineGameScreen implements Screen {
         }
         batch.end();
     }
+    private float lerp(float a, float b, float t) { return a + (b - a) * t; }
+
+    private PlayerSnapshot findPlayer(GameState s, int pid) {
+        for (PlayerSnapshot p : s.players) if (p.playerId == pid) return p;
+        return null;
+    }
+
+    private EntitySnapshot findEntity(GameState s, int id) {
+        for (EntitySnapshot e : s.entities) if (e.id == id) return e;
+        return null;
+    }
+
+    private BulletSnapshot findBullet(GameState s, int id) {
+        for (BulletSnapshot b : s.bullets) if (b.id == id) return b;
+        return null;
+    }
+    private Texture getBulletTexture(byte bulletType) {
+        // WeaponStats: 0=AMMO(shotgun), 1=AMMO_SMG, 2=AMMO_PISTOL
+        if (bulletType == 1) return bulletSmgTex;
+        if (bulletType == 2) return bulletPistolTex;
+        return bulletTex;
+    }
+
+    // x,y interpolasyonlu döndürür; prev'de yoksa (yeni spawn) direkt target kullanılır
+    private float[] interpPos(float px, float py, float tx, float ty, boolean hasPrev, float t) {
+        if (!hasPrev) return new float[]{tx, ty};
+        return new float[]{lerp(px, py == py ? px : px, 0), 0}; // placeholder, aşağıda gerçek kullanım var
+    }
 
     private void renderGame() {
+        float t = MathUtils.clamp(interpTimer / TICK_INTERVAL, 0f, 1f);
+
+        float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
+        float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
+
+        // --- Kamera: benim oyuncumu interpolasyonlu takip et ---
+        PlayerSnapshot meTarget = findPlayer(targetState, myPlayerId);
+        PlayerSnapshot mePrev   = findPlayer(prevState, myPlayerId);
+        if (meTarget != null) {
+            float mx = (mePrev != null) ? lerp(mePrev.x, meTarget.x, t) : meTarget.x;
+            float my = (mePrev != null) ? lerp(mePrev.y, meTarget.y, t) : meTarget.y;
+            camera.position.set(mx + 32, my + 32, 0);
+            camera.position.x = MathUtils.clamp(camera.position.x, viewport.getWorldWidth()  / 2, mapWidth  - viewport.getWorldWidth()  / 2);
+            camera.position.y = MathUtils.clamp(camera.position.y, viewport.getWorldHeight() / 2, mapHeight - viewport.getWorldHeight() / 2);
+            camera.update();
+        }
+
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT);
 
-        // Map
+        // --- Harita: mapShader ile ---
         mapRenderer.setView(camera);
+        mapRenderer.getBatch().setShader(mapShader);
+        if (mapShader.hasUniform("u_time"))
+            mapShader.setUniformf("u_time", shaderTime);
+        if (mapShader.hasUniform("u_resolution"))
+            mapShader.setUniformf("u_resolution", Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         mapRenderer.render();
+        mapRenderer.getBatch().setShader(null);
 
+        // --- Kan efektleri + mermiler + oyuncular (shader'sız) ---
         batch.setProjectionMatrix(camera.combined);
+        batch.setShader(null);
         batch.begin();
 
-        // Kan efektleri
-        for (BloodParticle b : bloods) {
-            batch.draw(bloodTex, b.x, b.y);
-        }
-        for (int i = bloods.size - 1; i >= 0; i--) {
-            if (bloods.get(i).dead) bloods.removeIndex(i);
-        }
-        // Düşmanlar
-        for (EntitySnapshot e : currentState.entities) {
-            if (e.dead) continue;
-            Texture tex = getEntityTexture(e.type);
-            batch.draw(tex, e.x, e.y);
+        for (BloodParticle b : bloods) batch.draw(bloodTex, b.x, b.y);
+
+        for (BulletSnapshot bt : targetState.bullets) {
+            if (bt.dead) continue;
+            BulletSnapshot bp = findBullet(prevState, bt.id);
+            float bx = (bp != null) ? lerp(bp.x, bt.x, t) : bt.x;
+            float by = (bp != null) ? lerp(bp.y, bt.y, t) : bt.y;
+            batch.draw(getBulletTexture(bt.bulletType), bx, by);
         }
 
-        // Mermi
-        for (BulletSnapshot b : currentState.bullets) {
-            if (b.dead) continue;
-            batch.draw(Assets.getTexture(Assets.Textures.BULLET), b.x, b.y);
-        }
-
-        // Oyuncular
-        for (PlayerSnapshot p : currentState.players) {
-            if (p.dead) continue;
-            batch.draw(playerTex, p.x, p.y);
-
-            // Silah çiz
-            drawGun(p);
+        for (PlayerSnapshot ps : targetState.players) {
+            if (ps.dead) continue;
+            PlayerSnapshot pp = findPlayer(prevState, ps.playerId);
+            float px = (pp != null) ? lerp(pp.x, ps.x, t) : ps.x;
+            float py = (pp != null) ? lerp(pp.y, ps.y, t) : ps.y;
+            batch.draw(playerTex, px, py);
+            drawGun(ps, px, py);
         }
 
         batch.end();
 
-        // HUD
+        // --- Düşmanlar: shader1 ile (u_health uniform) ---
+        batch.setShader(shader1);
+        batch.begin();
+        if (shader1.hasUniform("u_time")) shader1.setUniformf("u_time", shaderTime);
+
+        for (EntitySnapshot es : targetState.entities) {
+            if (es.dead) continue;
+            EntitySnapshot ep = findEntity(prevState, es.id);
+            float ex = (ep != null) ? lerp(ep.x, es.x, t) : es.x;
+            float ey = (ep != null) ? lerp(ep.y, es.y, t) : es.y;
+
+            if (shader1.hasUniform("u_health")) {
+                float healthRatio = es.maxHp > 0 ? (float) es.hp / es.maxHp : 1f;
+                shader1.setUniformf("u_health", healthRatio);
+            }
+            batch.draw(getEntityTexture(es.type), ex, ey);
+        }
+        batch.end();
+        batch.setShader(null);
+
         renderHUD();
     }
 
-    private void drawGun(PlayerSnapshot p) {
+    private void drawGun(PlayerSnapshot p, float px, float py) {
         Weapons weapon = slotToWeapon(p.weaponSlot);
         if (weapon == null) return;
         Texture gunTex = Assets.getTexture(weapon.getGunTexturePath());
@@ -370,7 +440,7 @@ public class OnlineGameScreen implements Screen {
 
         batch.draw(
                 gunTex,
-                p.x + 32, p.y + 32,
+                px + 32, py + 32,
                 0, gunTex.getHeight() / 2f,
                 gunTex.getWidth(), gunTex.getHeight(),
                 scale, scale,
@@ -417,8 +487,8 @@ public class OnlineGameScreen implements Screen {
     }
 
     private PlayerSnapshot getMySnapshot() {
-        if (currentState == null) return null;
-        for (PlayerSnapshot p : currentState.players)
+        if (targetState == null) return null;
+        for (PlayerSnapshot p : targetState.players)
             if (p.playerId == myPlayerId) return p;
         return null;
     }
