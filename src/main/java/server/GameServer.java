@@ -48,9 +48,14 @@ public class GameServer {
         server.addListener(new Listener() {
             @Override
             public void connected(Connection c) {
-                if (connectedCount >= 2) { c.close(); return; }
-                int pid = connectedCount++;
+                int pid = -1;
+                for (int i = 0; i < players.length; i++) {
+                    if (players[i] == null) { pid = i; break; }
+                }
+                if (pid == -1) { c.close(); return; }
+
                 players[pid] = new ServerPlayerState(pid, c.getID());
+                connectedCount++;
                 System.out.println("Oyuncu " + pid + " bağlandı. connID=" + c.getID());
 
                 JoinAckMessage ack = new JoinAckMessage();
@@ -58,7 +63,6 @@ public class GameServer {
                 ack.gameReady        = (connectedCount == 2);
                 server.sendToTCP(c.getID(), ack);
 
-                // İkinci oyuncu bağlandığında birinciye de gameReady gönder
                 if (connectedCount == 2) {
                     JoinAckMessage ack0 = new JoinAckMessage();
                     ack0.assignedPlayerId = 0;
@@ -69,10 +73,12 @@ public class GameServer {
 
             @Override
             public void disconnected(Connection c) {
-                for (ServerPlayerState p : players) {
+                for (int i = 0; i < players.length; i++) {
+                    ServerPlayerState p = players[i];
                     if (p != null && p.connectionId == c.getID()) {
-                        p.dead = true;
                         System.out.println("Oyuncu " + p.playerId + " ayrıldı.");
+                        players[i] = null;
+                        connectedCount--;
                     }
                 }
             }
