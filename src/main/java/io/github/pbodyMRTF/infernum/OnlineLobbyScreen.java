@@ -1,3 +1,5 @@
+package io.github.pbodyMRTF.infernum;
+
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
@@ -6,7 +8,6 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
-import io.github.pbodyMRTF.infernum.OnlineGameScreen;
 
 public class OnlineLobbyScreen implements Screen {
 

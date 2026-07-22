@@ -1,3 +1,5 @@
+package io.github.pbodyMRTF.infernum;
+
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
@@ -19,7 +21,6 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
-import io.github.pbodyMRTF.infernum.NetworkClient;
 import shared.*;
 
 import java.io.IOException;

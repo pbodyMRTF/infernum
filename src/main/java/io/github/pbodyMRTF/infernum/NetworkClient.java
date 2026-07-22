@@ -1,3 +1,5 @@
+package io.github.pbodyMRTF.infernum;
+
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
