@@ -227,7 +227,7 @@ public class GameServer {
                 {x, y + PLAYER_SIZE / 2}, {x + PLAYER_SIZE, y + PLAYER_SIZE / 2}
         };
         for (float[] pt : points) {
-            if (collisionGrid.isBlockedWorld(pt[0], pt[1])) return true;
+            if (collisionGrid.isPlayerBlockedWorld(pt[0], pt[1])) return true;
         }
         return false;
     }
@@ -269,7 +269,7 @@ public class GameServer {
             b.x += b.vx * dt;
             b.y += b.vy * dt;
 
-            if (collisionGrid.isBlockedWorld(b.x, b.y)) {
+            if (collisionGrid.isBulletBlockedWorld(b.x, b.y)) {
                 int oldTileX = (int)(oldX / (collisionGrid.tileWidth * 3f));
                 int newTileX = (int)(b.x   / (collisionGrid.tileWidth * 3f));
                 if (oldTileX != newTileX) { b.vx = -b.vx; b.x = oldX; }

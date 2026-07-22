@@ -13,6 +13,17 @@ public class CollisionExportUtil {
         StringBuilder sb = new StringBuilder();
         sb.append(tw).append(" ").append(th).append(" ").append(gw).append(" ").append(gh).append("\n");
 
+        // 1. Sadece duvar — mermiler için
+        for (int y = 0; y < gh; y++) {
+            for (int x = 0; x < gw; x++) {
+                sb.append(wallLayer.getCell(x, y) != null ? '1' : '0');
+            }
+            sb.append("\n");
+        }
+
+        sb.append("---\n");
+
+        // 2. Duvar + alçak engel — oyuncu için
         for (int y = 0; y < gh; y++) {
             for (int x = 0; x < gw; x++) {
                 boolean blocked = wallLayer.getCell(x, y) != null
