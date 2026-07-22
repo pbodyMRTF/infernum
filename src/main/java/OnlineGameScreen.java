@@ -357,12 +357,16 @@ public class OnlineGameScreen implements Screen {
         float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
         float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
 
-        // --- Kamera: benim oyuncumu interpolasyonlu takip et ---
+        // --- Kamera: ölüysem diğer oyuncuyu izle ---
         PlayerSnapshot meTarget = findPlayer(targetState, myPlayerId);
-        PlayerSnapshot mePrev   = findPlayer(prevState, myPlayerId);
-        if (meTarget != null) {
-            float mx = (mePrev != null) ? lerp(mePrev.x, meTarget.x, t) : meTarget.x;
-            float my = (mePrev != null) ? lerp(mePrev.y, meTarget.y, t) : meTarget.y;
+        PlayerSnapshot camTarget = (meTarget != null && !meTarget.dead)
+                ? meTarget
+                : findOtherAlivePlayer(targetState, myPlayerId);
+
+        if (camTarget != null) {
+            PlayerSnapshot camPrev = findPlayer(prevState, camTarget.playerId);
+            float mx = (camPrev != null) ? lerp(camPrev.x, camTarget.x, t) : camTarget.x;
+            float my = (camPrev != null) ? lerp(camPrev.y, camTarget.y, t) : camTarget.y;
             camera.position.set(mx + 32, my + 32, 0);
             camera.position.x = MathUtils.clamp(camera.position.x, viewport.getWorldWidth()  / 2, mapWidth  - viewport.getWorldWidth()  / 2);
             camera.position.y = MathUtils.clamp(camera.position.y, viewport.getWorldHeight() / 2, mapHeight - viewport.getWorldHeight() / 2);
@@ -429,8 +433,14 @@ public class OnlineGameScreen implements Screen {
         batch.setShader(null);
 
         renderEnemyHealthBars();
-
         renderHUD();
+    }
+
+    private PlayerSnapshot findOtherAlivePlayer(GameState s, int excludePid) {
+        for (PlayerSnapshot p : s.players) {
+            if (p.playerId != excludePid && !p.dead) return p;
+        }
+        return null;
     }
 
     private void renderEnemyHealthBars() {

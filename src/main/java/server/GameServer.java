@@ -138,7 +138,10 @@ public class GameServer {
         ServerPlayerState p0 = players[0];
         ServerPlayerState p1 = players[1];
         if (p0 != null && p1 != null) {
-            entityManager.updateAll(dt, p0.x, p0.y, p1.x, p1.y);
+            List<float[]> aliveTargets = new ArrayList<>();
+            if (!p0.dead) aliveTargets.add(new float[]{p0.x, p0.y});
+            if (!p1.dead) aliveTargets.add(new float[]{p1.x, p1.y});
+            entityManager.updateAll(dt, aliveTargets);
         }
 
         updateBullets(dt);
@@ -156,7 +159,7 @@ public class GameServer {
     // -----------------------------------------------------------
     private void handleInput(PlayerInput input) {
         ServerPlayerState p = getPlayer(input.playerId);
-        if (p == null) return;
+        if (p == null || p.dead) return;
         p.lastInput = input;
 
         if (input.weaponSlot > 0 && input.weaponSlot != p.weaponSlot) {
