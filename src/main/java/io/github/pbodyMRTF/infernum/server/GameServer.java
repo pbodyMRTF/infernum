@@ -1,10 +1,9 @@
-package server;
+package io.github.pbodyMRTF.infernum.server;
 
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Server;
-import server.*;
-import shared.*;
+import io.github.pbodyMRTF.infernum.shared.*;
 
 import java.io.IOException;
 import java.util.*;

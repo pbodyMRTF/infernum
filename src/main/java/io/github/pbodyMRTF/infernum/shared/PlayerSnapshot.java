@@ -1,4 +1,4 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 public class PlayerSnapshot {
     public int playerId;              // 0 veya 1

@@ -1,4 +1,4 @@
-package server;
+package io.github.pbodyMRTF.infernum.server;
 
 public class ServerEntity {
     public int id;

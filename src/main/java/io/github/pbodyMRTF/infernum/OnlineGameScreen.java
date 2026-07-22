@@ -21,7 +21,7 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
-import shared.*;
+import io.github.pbodyMRTF.infernum.shared.*;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -87,7 +87,7 @@ public class OnlineGameScreen implements Screen {
     private static final float TRIGGER_DEADZONE = 0.5f;
     private boolean prevTriggerFired = false;
 
-    // --- Game state (server'dan gelir) ---
+    // --- Game state (io.github.pbodyMRTF.infernum.server'dan gelir) ---
     private GameState currentState = null;
 
     // --- Görsel interpolasyon için son pozisyonlar ---

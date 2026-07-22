@@ -1,4 +1,4 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 import com.esotericsoftware.kryonet.EndPoint;
 import java.util.ArrayList;

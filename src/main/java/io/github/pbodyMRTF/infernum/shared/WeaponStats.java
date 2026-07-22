@@ -1,4 +1,4 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 public class WeaponStats {
     public static final int SLOT_PISTOL  = 1;

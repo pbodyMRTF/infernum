@@ -1,4 +1,4 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 public class PlayerInput {
     public int playerId;
@@ -11,7 +11,7 @@ public class PlayerInput {
     // Ateş
     public boolean fireKeyboard;       // sol tık veya boşluk
     public boolean fireTrigger;        // gamepad RT
-    public float aimAngle;            // client hesaplar, server kullanır
+    public float aimAngle;            // client hesaplar, io.github.pbodyMRTF.infernum.server kullanır
 
     // Silah değiştirme
     public int weaponSlot;            // 0=yok, 1=pistol, 2=shotgun, 3=smg

@@ -1,4 +1,4 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 public class BulletSnapshot {
     public int id;

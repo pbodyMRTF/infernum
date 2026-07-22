@@ -1,4 +1,4 @@
-package server;
+package io.github.pbodyMRTF.infernum.server;
 
 import java.io.BufferedReader;
 import java.io.FileReader;

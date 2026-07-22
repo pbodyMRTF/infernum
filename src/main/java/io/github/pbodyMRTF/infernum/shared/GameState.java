@@ -1,4 +1,4 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 import java.util.ArrayList;
 import java.util.List;

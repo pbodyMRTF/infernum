@@ -1,9 +1,8 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 import com.esotericsoftware.kryonet.Client;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
-import shared.*;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;

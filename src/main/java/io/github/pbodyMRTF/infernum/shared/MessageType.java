@@ -1,4 +1,4 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 public enum MessageType {
     JOIN,           // Client → Server: oyuna katıl

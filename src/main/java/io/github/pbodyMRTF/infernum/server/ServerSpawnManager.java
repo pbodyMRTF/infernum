@@ -1,6 +1,6 @@
-package server;
+package io.github.pbodyMRTF.infernum.server;
 
-import shared.EntitySnapshot;
+import io.github.pbodyMRTF.infernum.shared.EntitySnapshot;
 import java.util.Random;
 
 public class ServerSpawnManager {

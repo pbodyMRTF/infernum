@@ -1,4 +1,4 @@
-package server;
+package io.github.pbodyMRTF.infernum.server;
 
 public class ServerTickTimer {
     public static final float TICK_RATE = 1f / 20f;

@@ -1,4 +1,4 @@
-package shared;
+package io.github.pbodyMRTF.infernum.shared;
 
 public class JoinAckMessage {
     public int assignedPlayerId;   // 0 = host, 1 = joiner

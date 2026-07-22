@@ -1,4 +1,4 @@
-package server;
+package io.github.pbodyMRTF.infernum.server;
 
 import java.util.ArrayList;
 import java.util.List;
