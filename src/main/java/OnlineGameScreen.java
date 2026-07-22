@@ -306,6 +306,17 @@ public class OnlineGameScreen implements Screen {
         if (allDead) {
             game.setScreen(new MainMenuScreen(game));
         }
+        for (PlayerSnapshot ps : state.players) {
+            if (ps.firedThisTick) {
+                playShotSound(ps.firedBulletType);
+            }
+        }
+    }
+    private void playShotSound(byte bulletType) {
+        // WeaponStats sabitleri: 0=AMMO(shotgun), 1=AMMO_SMG, 2=AMMO_PISTOL
+        if (bulletType == 0) shotgunSound.play(0.7f);
+        else if (bulletType == 1) smgSound.play(0.7f);
+        else if (bulletType == 2) shootSound.play(0.7f);
     }
 
     // ---------------------------------------------------------------

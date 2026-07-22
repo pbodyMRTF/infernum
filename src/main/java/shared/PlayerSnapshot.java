@@ -8,5 +8,8 @@ public class PlayerSnapshot {
     public int weaponSlot;
     public float aimAngle;
 
+    public boolean firedThisTick;
+    public byte firedBulletType;
+
     public PlayerSnapshot() {}
 }

@@ -188,6 +188,8 @@ public class GameServer {
             spawnBullets(p, input.aimAngle, w);
             p.shootCooldown = new ServerTickTimer(w.fireRateTicks);
             p.shootCooldown.start(currentTick);
+            p.firedThisTick = true;
+            p.firedBulletType = w.bulletType;
         }
     }
 
@@ -373,7 +375,11 @@ public class GameServer {
             ps.hp = p.hp; ps.dead = p.dead;
             ps.weaponSlot = p.weaponSlot;
             ps.aimAngle = p.lastInput != null ? p.lastInput.aimAngle : 0f;
+            ps.firedThisTick  = p.firedThisTick;
+            ps.firedBulletType = p.firedBulletType;
             state.players.add(ps);
+
+            p.firedThisTick = false;
         }
         for (ServerEntity e : entityManager.getAll()) {
             EntitySnapshot es = new EntitySnapshot();
@@ -410,6 +416,8 @@ public class GameServer {
         boolean dead = false;
         int weaponSlot = 1;
         boolean prevFireHeld = false;
+        boolean firedThisTick = false;
+        byte firedBulletType = -1;
         ServerTickTimer shootCooldown   = new ServerTickTimer(SHOOT_COOLDOWN_DEFAULT_TICKS);
         ServerTickTimer hitCooldown     = new ServerTickTimer(HIT_COOLDOWN_TICKS);
         ServerTickTimer bayonetCooldown = new ServerTickTimer(BAYONET_COOLDOWN_TICKS);
