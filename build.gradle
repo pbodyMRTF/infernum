@@ -7,18 +7,15 @@ buildscript {
         google()
     }
 }
-
 apply plugin: "java"
 apply plugin: "application"
-
 version = '1.2.1'
-
 ext {
     appName = "infernum"
     gdxVersion = '1.12.1'
     mainClassName = "io.github.pbodyMRTF.infernum.DesktopLauncher"
+    serverMainClassName = "io.github.pbodyMRTF.infernum.server.GameServer"
 }
-
 repositories {
     mavenLocal()
     mavenCentral()
@@ -27,21 +24,23 @@ repositories {
     maven { url "https://oss.sonatype.org/content/repositories/releases/" }
 }
 
+// --- Server için ayrı bağımlılık configuration'ı ---
+configurations {
+    serverRuntime
+}
+
 dependencies {
     implementation "com.badlogicgames.gdx:gdx:$gdxVersion"
     implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
     implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
-
-    // FreeType
     implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
     implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
-
-    // Gamepad
     implementation "com.badlogicgames.gdx-controllers:gdx-controllers-core:2.2.4"
     implementation "com.badlogicgames.gdx-controllers:gdx-controllers-desktop:2.2.4"
-
     implementation "com.esotericsoftware:kryonet:2.22.0-RC1"
 
+    // Server sadece bunu kullanacak (kryonet + transitive: kryo, minlog, reflectasm, objenesis)
+    serverRuntime "com.esotericsoftware:kryonet:2.22.0-RC1"
 }
 
 application {
@@ -59,29 +58,53 @@ sourceSets {
     }
 }
 
+// --- CLIENT JAR (mevcut 'dist' task, isim aynı kalsın) ---
 task dist(type: Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes(
-                'Main-Class': project.ext.mainClassName, // Reference the variable correctly
+                'Main-Class': project.ext.mainClassName,
                 'Implementation-Title': appName,
                 'Implementation-Version': version
         )
     }
-
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
-
     from sourceSets.main.output
-
     from("src/main/resources") {
         into ""
     }
-
     archiveBaseName.set(appName)
     archiveClassifier.set('dist')
     destinationDirectory.set(file("${buildDir}/dist"))
 }
-
 dist.dependsOn classes
+
+// --- SERVER JAR (yeni) ---
+task serverDist(type: Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes(
+                'Main-Class': project.ext.serverMainClassName,
+                'Implementation-Title': "${appName}-server",
+                'Implementation-Version': version
+        )
+    }
+
+    // Sadece server + shared paket class dosyaları — LibGDX/render kodu hiç girmiyor
+    from(sourceSets.main.output) {
+        include 'io/github/pbodyMRTF/infernum/server/**'
+        include 'io/github/pbodyMRTF/infernum/shared/**'
+    }
+
+    // Sadece kryonet ve onun transitive bağımlılıkları
+    from {
+        configurations.serverRuntime.collect { zipTree(it) }
+    }
+
+    archiveBaseName.set("${appName}-server")
+    archiveClassifier.set('dist')
+    destinationDirectory.set(file("${buildDir}/dist"))
+}
+serverDist.dependsOn classes
