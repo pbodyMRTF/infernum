@@ -292,6 +292,7 @@ public class GameServer {
         for (ServerEntity e : entityManager.getAll()) {
             if (e.dead) continue;
             for (ServerBullet b : bullets) {
+                if (e.dead) break;
                 if (b.dead) continue;
                 float dist = dist(e.x + 32, e.y + 32, b.x + 4, b.y + 4);
                 if (dist < 36f) {
@@ -299,7 +300,10 @@ public class GameServer {
                     e.hp -= dmg;
                     e.hitSoundThisTick = resolveHitSound(e.type, b.type);
                     if (killsBullet(e.type, b.type)) b.dead = true;
-                    if (e.hp <= 0) { e.dead = true; score++; }
+                    if (e.hp <= 0) {
+                        if (!e.dead) score++;
+                        e.dead = true;
+                    }
                 }
             }
         }
