@@ -1,6 +1,11 @@
 package io.github.pbodyMRTF.infernum.shared;
 public class PlayerSnapshot {
     public int playerId;
+
+    public boolean bayonetUsedThisTick;
+    public boolean bayonetOnCooldown;
+    public float bayonetCooldownProgress;
+
     public float x, y;
     public int hp;
     public boolean dead;

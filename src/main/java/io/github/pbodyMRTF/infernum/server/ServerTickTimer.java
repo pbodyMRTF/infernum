@@ -15,6 +15,12 @@ public class ServerTickTimer {
         this.startTick = currentTick;
         this.running = true;
     }
+    public float getProgress(int currentTick) {
+        if (!running) return 1f;
+        int elapsed = currentTick - startTick;
+        if (elapsed >= durationTicks) return 1f;
+        return (float) elapsed / durationTicks;
+    }
 
     public boolean isFinished(int currentTick) {
         return running && (currentTick - startTick) >= durationTicks;

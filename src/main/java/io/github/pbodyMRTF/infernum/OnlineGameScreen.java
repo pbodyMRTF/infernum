@@ -26,6 +26,8 @@ import io.github.pbodyMRTF.infernum.shared.*;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Iterator;
+import com.badlogic.gdx.graphics.Color;
 
 public class OnlineGameScreen implements Screen {
 
@@ -46,6 +48,9 @@ public class OnlineGameScreen implements Screen {
     private int myPlayerId = -1;
     private boolean gameReady = false;
     private String serverHost;
+
+    private Sound sliceSound;
+    private Map<Integer, Float> bayonetAnimTimers = new HashMap<>();
 
 
 
@@ -152,6 +157,8 @@ public class OnlineGameScreen implements Screen {
         bulletPistolTex  = Assets.getTexture(Assets.Textures.BULLET_PISTOL);
         tinSound         = Assets.getSound(Assets.Sounds.TIN);
         splatSound       = Assets.getSound(Assets.Sounds.SPLAT);
+
+        sliceSound = Assets.getSound(Assets.Sounds.SLICE);
     }
 
     private void connectToServer() {
@@ -212,6 +219,12 @@ public class OnlineGameScreen implements Screen {
         // Render
         if (groundLayer != null && currentState != null) {
             renderGame();
+        }
+        Iterator<Map.Entry<Integer, Float>> it = bayonetAnimTimers.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Integer, Float> e = it.next();
+            float nt = e.getValue() + delta;
+            if (nt >= 0.3f) it.remove(); else e.setValue(nt);
         }
     }
 
@@ -308,13 +321,11 @@ public class OnlineGameScreen implements Screen {
 
         // Ateş sesi
         for (PlayerSnapshot ps : state.players) {
-            if (ps.firedThisTick) {
-                playShotSound(ps.firedBulletType);
-            }
-            // Oyuncu hasar aldı (ölsün ölmesin) — orijinal playerTakeDamage() davranışı
-            if (ps.damagedThisTick) {
-                spawnBlood(ps.x + 32, ps.y + 32, 50);
-                woodSound.play(0.9f);
+            if (ps.firedThisTick) playShotSound(ps.firedBulletType);
+            if (ps.damagedThisTick) { spawnBlood(ps.x + 32, ps.y + 32, 50); woodSound.play(0.9f); }
+            if (ps.bayonetUsedThisTick) {
+                sliceSound.play(1.2f);
+                bayonetAnimTimers.put(ps.playerId, 0f);
             }
         }
 
@@ -438,7 +449,14 @@ public class OnlineGameScreen implements Screen {
             float py = (pp != null) ? lerp(pp.y, ps.y, t) : ps.y;
             batch.draw(playerTex, px, py);
             drawGun(ps, px, py);
+
+            batch.draw(playerTex, px, py);
+            drawGun(ps, px, py);
+            if (bayonetAnimTimers.containsKey(ps.playerId)) {
+                renderBayonetAnim(px, py, bayonetAnimTimers.get(ps.playerId));
+            }
         }
+
 
         batch.end();
 
@@ -463,7 +481,26 @@ public class OnlineGameScreen implements Screen {
         batch.setShader(null);
 
         renderEnemyHealthBars();
+
         renderHUD();
+    }
+    private void renderBayonetAnim(float px, float py, float animTime) {
+        float bladeW = 16f, bladeH = 32f, orbit = 60f;
+        float rotation = (animTime / 0.3f) * 360f * 1.5f;
+        float alpha    = 1f - (animTime / 0.3f);
+        float cx = px + 32, cy = py + 32;
+        float dx = cx + MathUtils.cosDeg(rotation) * orbit;
+        float dy = cy + MathUtils.sinDeg(rotation) * orbit;
+
+        batch.setColor(1f, 1f, 1f, alpha);
+        batch.draw(bayonetTex,
+                dx - bladeW / 2, dy - bladeH / 2,
+                bladeW / 2, bladeH / 2,
+                bladeW, bladeH,
+                1f, 1f, rotation - 90f,
+                0, 0, bayonetTex.getWidth(), bayonetTex.getHeight(),
+                false, false);
+        batch.setColor(Color.WHITE);
     }
 
     private PlayerSnapshot findOtherAlivePlayer(GameState s, int excludePid) {
@@ -549,8 +586,38 @@ public class OnlineGameScreen implements Screen {
             };
         }
         batch.draw(current, hotbarX, hotbarY, hotbarWidth, hotbarHeight);
+        if (me != null) renderBayonetCooldownBar(me);
 
         batch.end();
+    }
+    private void renderBayonetCooldownBar(PlayerSnapshot me) {
+        float barWidth = 200, barHeight = 20;
+        float barX = UI_WIDTH - barWidth - 20;
+        float barY = 40;
+
+        batch.end();
+
+        shapeRenderer.setProjectionMatrix(uiCamera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.8f);
+        shapeRenderer.rect(barX, barY, barWidth, barHeight);
+
+        float progress = me.bayonetOnCooldown ? me.bayonetCooldownProgress : 1f;
+        shapeRenderer.setColor(progress >= 1f ? 0.2f : 1f - progress * 0.5f,
+                progress >= 1f ? 0.8f : progress * 0.8f,
+                progress >= 1f ? 0.2f : 0.1f, 1f);
+        shapeRenderer.rect(barX, barY, barWidth * progress, barHeight);
+        shapeRenderer.end();
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(1f, 1f, 1f, 1f);
+        shapeRenderer.rect(barX, barY, barWidth, barHeight);
+        shapeRenderer.end();
+
+        batch.begin();
+        font.getData().setScale(0.5f);
+        font.draw(batch, me.bayonetOnCooldown ? "Bayonet: Cooldown" : "Bayonet: Ready", barX, barY + barHeight + 18);
+        font.getData().setScale(1f);
     }
 
     // ---------------------------------------------------------------

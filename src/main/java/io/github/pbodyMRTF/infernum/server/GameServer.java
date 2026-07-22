@@ -171,6 +171,7 @@ public class GameServer {
 
         if (input.bayonetPressed && !p.bayonetCooldown.isRunning()) {
             p.bayonetCooldown.start(currentTick);
+            p.bayonetUsedThisTick = true;
             handleBayonet(p);
         }
 
@@ -398,8 +399,15 @@ public class GameServer {
             ps.damagedThisTick = p.damagedThisTick;
             state.players.add(ps);
 
-            p.firedThisTick   = false;
+            ps.bayonetUsedThisTick      = p.bayonetUsedThisTick;
+            ps.bayonetOnCooldown        = p.bayonetCooldown.isRunning();
+            ps.bayonetCooldownProgress  = p.bayonetCooldown.isRunning()
+                    ? p.bayonetCooldown.getProgress(currentTick) : 1f;
+            state.players.add(ps);
+
+            p.firedThisTick = false;
             p.damagedThisTick = false;
+            p.bayonetUsedThisTick = false;
         }
         for (ServerEntity e : entityManager.getAll()) {
             EntitySnapshot es = new EntitySnapshot();
@@ -438,6 +446,7 @@ public class GameServer {
         int hp = 3;
         boolean dead = false;
         int weaponSlot = 1;
+        boolean bayonetUsedThisTick = false;
         boolean prevFireHeld = false;
         boolean firedThisTick = false;
         byte firedBulletType = -1;
