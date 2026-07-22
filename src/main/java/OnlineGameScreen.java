@@ -428,7 +428,32 @@ public class OnlineGameScreen implements Screen {
         batch.end();
         batch.setShader(null);
 
+        renderEnemyHealthBars();
+
         renderHUD();
+    }
+
+    private void renderEnemyHealthBars() {
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (EntitySnapshot es : targetState.entities) {
+            if (es.dead) continue;
+            EntitySnapshot ep = findEntity(prevState, es.id);
+            float t = MathUtils.clamp(interpTimer / TICK_INTERVAL, 0f, 1f);
+            float ex = (ep != null) ? lerp(ep.x, es.x, t) : es.x;
+            float ey = (ep != null) ? lerp(ep.y, es.y, t) : es.y;
+
+            float bw = 64f, bh = 7f;
+            float bx = ex, by = ey + 68f;
+
+            shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 0.85f);
+            shapeRenderer.rect(bx, by, bw, bh);
+
+            float ratio = es.maxHp > 0 ? MathUtils.clamp((float) es.hp / es.maxHp, 0f, 1f) : 1f;
+            shapeRenderer.setColor(ratio > 0.5f ? 0.2f : 0.85f, ratio > 0.5f ? 0.85f : 0.3f, ratio > 0.5f ? 0.2f : 0.1f, 1f);
+            shapeRenderer.rect(bx, by, bw * ratio, bh);
+        }
+        shapeRenderer.end();
     }
 
     private void drawGun(PlayerSnapshot p, float px, float py) {
