@@ -513,14 +513,23 @@ public class OnlineGameScreen implements Screen {
             }
         }
 
-        // Hotbar (benim silahım)
+        // Hotbar (benim silahım) — orijinaliyle birebir aynı
         PlayerSnapshot me = getMySnapshot();
+        float hotbarWidth  = 100;
+        float hotbarHeight = 260;
+        float hotbarX      = UI_WIDTH + (hotbarWidth / 2);
+        float hotbarY      = (UI_HEIGHT / 2) - (hotbarHeight / 2);
+
+        Texture current = hotbar1;
         if (me != null) {
-            Texture hb = me.weaponSlot == 1 ? hotbar1
-                    : me.weaponSlot == 2 ? hotbar2
-                    : hotbar3;
-            batch.draw(hb, UI_WIDTH / 2 - hb.getWidth() / 2f, 10);
+            current = switch (me.weaponSlot) {
+                case 1 -> hotbar1;
+                case 2 -> hotbar2;
+                case 3 -> hotbar3;
+                default -> current;
+            };
         }
+        batch.draw(current, hotbarX, hotbarY, hotbarWidth, hotbarHeight);
 
         batch.end();
     }
