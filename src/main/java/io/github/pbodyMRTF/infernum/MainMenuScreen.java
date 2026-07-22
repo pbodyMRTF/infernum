@@ -52,7 +52,7 @@ public class MainMenuScreen implements Screen {
     private float[] particleSpeed = new float[PARTICLE_COUNT];
     private float[] particleSize  = new float[PARTICLE_COUNT];
 
-    private static final int   MENU_OPTION_COUNT   = 5;
+    private static final int   MENU_OPTION_COUNT   = 6;
     private static final int   GAMEPAD_BUTTON_A    = 0;
     private static final int   GAMEPAD_BUTTON_B    = 1;
     private static final int   GAMEPAD_AXIS_LEFT_Y = 1;
@@ -141,10 +141,11 @@ public class MainMenuScreen implements Screen {
         float spacing    = 50f;
 
         drawMenuItem(game.bundle.get("menu.start"),    menuStartY,               0);
-        drawMenuItem(game.bundle.get("menu.tutorial"), menuStartY - spacing,     1);
-        drawMenuItem(game.bundle.get("menu.settings"), menuStartY - 2 * spacing, 2);
-        drawMenuItem(game.bundle.get("menu.credits"),  menuStartY - 3 * spacing, 3);
-        drawMenuItem(game.bundle.get("menu.exit"),     menuStartY - 4 * spacing, 4);
+        drawMenuItem(game.bundle.get("menu.online"),   menuStartY - spacing,     1);
+        drawMenuItem(game.bundle.get("menu.tutorial"), menuStartY - 2 * spacing, 2);
+        drawMenuItem(game.bundle.get("menu.settings"), menuStartY - 3 * spacing, 3);
+        drawMenuItem(game.bundle.get("menu.credits"),  menuStartY - 4 * spacing, 4);
+        drawMenuItem(game.bundle.get("menu.exit"),     menuStartY - 5 * spacing, 5);
 
         // Versiyon
         fontVersion.setColor(0.7f, 0.7f, 0.7f, menuAlpha * 0.6f);
@@ -228,11 +229,12 @@ public class MainMenuScreen implements Screen {
         if (confirm) {
             ConfirmSound.play(1 * MasterSound);
             switch (selectedOption) {
-                case 0: game.setScreen(new GameScreen(game));     dispose(); break;
-                case 1: game.setScreen(new TutorialScreen(game)); dispose(); break;
-                case 2: game.setScreen(new SettingsScreen(game)); dispose(); break;
-                case 3: game.setScreen(new AboutScreen(game));    dispose(); break;
-                case 4: dispose(); Gdx.app.exit();                           break;
+                case 0: game.setScreen(new GameScreen(game));       dispose(); break;
+                case 1: game.setScreen(new OnlineLobbyScreen(game)); dispose(); break;
+                case 2: game.setScreen(new TutorialScreen(game));   dispose(); break;
+                case 3: game.setScreen(new SettingsScreen(game));   dispose(); break;
+                case 4: game.setScreen(new AboutScreen(game));      dispose(); break;
+                case 5: dispose(); Gdx.app.exit();                             break;
             }
         }
 

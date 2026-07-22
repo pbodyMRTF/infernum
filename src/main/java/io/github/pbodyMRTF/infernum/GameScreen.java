@@ -322,6 +322,9 @@ public class GameScreen implements Screen {
         handleCollisions();
         cleanupDeadObjects();
         renderGame();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F12)) {
+            CollisionExportUtil.export(wallLayer, lowObstacleLayer, "collision_flape.txt");
+        }
     }
     private void updateBayonetAnim(float delta) {
         if (showBayonetAnim) {
@@ -390,6 +393,7 @@ public class GameScreen implements Screen {
 
     @Override
     public void show() {
+
         ShaderProgram.pedantic = false;
 
         shader1 = new ShaderProgram(
@@ -412,7 +416,10 @@ public class GameScreen implements Screen {
         lowObstacleLayer = (TiledMapTileLayer) map.getLayers().get("dk3");
         mapRenderer      = new OrthogonalTiledMapRenderer(map, 3f);
 
+
         spawnManager.setGroundLayer(groundLayer);
+
+
 
         renderer = new Renderer(batch, camera, uiCamera, viewport, mapRenderer,
                 shader1, mapShader, groundLayer, entityManager,
