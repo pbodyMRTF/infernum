@@ -126,6 +126,11 @@ public class GameServer {
     private void tick(float dt) {
         currentTick++;
 
+
+
+        entityManager.cleanup();
+        bullets.removeIf(b -> b.dead);
+
         spawnManager.tick(currentTick, score);
 
         for (ServerPlayerState p : players) {
@@ -147,9 +152,7 @@ public class GameServer {
         handleBulletEnemyCollision();
         handlePlayerEnemyCollision();
 
-        entityManager.cleanup();
-        bullets.removeIf(b -> b.dead);
-
+        // NOT: cleanup burada YOK artık — bir sonraki tick'in başında yapılacak
         broadcastGameState();
     }
 
@@ -293,6 +296,7 @@ public class GameServer {
                 if (dist < 36f) {
                     int dmg = resolveDamage(e.type, b.type);
                     e.hp -= dmg;
+                    e.hitSoundThisTick = resolveHitSound(e.type, b.type);
                     if (killsBullet(e.type, b.type)) b.dead = true;
                     if (e.hp <= 0) { e.dead = true; score++; }
                 }
@@ -316,6 +320,20 @@ public class GameServer {
         }
         return 1;
     }
+    // SFX: 0=tin, 1=splat, 2=tin+pop
+    private byte resolveHitSound(byte entityType, byte bulletType) {
+        if (entityType == EntitySnapshot.TYPE_ENEMY) {
+            if (bulletType == WeaponStats.BULLET_AMMO_SMG) return 1; // splat
+            return 0; // pistol/shotgun ammo -> tin
+        } else if (entityType == EntitySnapshot.TYPE_ENEMY2) {
+            if (bulletType == WeaponStats.BULLET_AMMO) return 1; // shotgun -> splat
+            return 2; // smg/pistol -> tin+pop
+        } else if (entityType == EntitySnapshot.TYPE_ENEMY3) {
+            if (bulletType == WeaponStats.BULLET_AMMO_PISTOL) return 1; // splat
+            return 0; // tin
+        }
+        return 0;
+    }
 
     // Orijinalde: Enemy'de sadece AMMO_SMG mermiyi öldürmüyor (deler), diğerleri dead=true
     private boolean killsBullet(byte entityType, byte bulletType) {
@@ -337,6 +355,7 @@ public class GameServer {
                 if (dist < 64f) {
                     p.hp--;
                     p.hitCooldown.start(currentTick);
+                    p.damagedThisTick = true;
                     if (p.hp <= 0) p.dead = true;
                     break;
                 }
@@ -374,11 +393,13 @@ public class GameServer {
             ps.hp = p.hp; ps.dead = p.dead;
             ps.weaponSlot = p.weaponSlot;
             ps.aimAngle = p.lastInput != null ? p.lastInput.aimAngle : 0f;
-            ps.firedThisTick  = p.firedThisTick;
+            ps.firedThisTick   = p.firedThisTick;
             ps.firedBulletType = p.firedBulletType;
+            ps.damagedThisTick = p.damagedThisTick;
             state.players.add(ps);
 
-            p.firedThisTick = false;
+            p.firedThisTick   = false;
+            p.damagedThisTick = false;
         }
         for (ServerEntity e : entityManager.getAll()) {
             EntitySnapshot es = new EntitySnapshot();
@@ -389,7 +410,10 @@ public class GameServer {
             es.hp    = e.hp;
             es.maxHp = e.maxHp;
             es.dead  = e.dead;
+            es.hitSoundType = e.hitSoundThisTick;
             state.entities.add(es);
+
+            e.hitSoundThisTick = -1;
         }
         for (ServerBullet b : bullets) {
             BulletSnapshot bs = new BulletSnapshot();
@@ -417,6 +441,7 @@ public class GameServer {
         boolean prevFireHeld = false;
         boolean firedThisTick = false;
         byte firedBulletType = -1;
+        boolean damagedThisTick = false;
         ServerTickTimer shootCooldown   = new ServerTickTimer(SHOOT_COOLDOWN_DEFAULT_TICKS);
         ServerTickTimer hitCooldown     = new ServerTickTimer(HIT_COOLDOWN_TICKS);
         ServerTickTimer bayonetCooldown = new ServerTickTimer(BAYONET_COOLDOWN_TICKS);

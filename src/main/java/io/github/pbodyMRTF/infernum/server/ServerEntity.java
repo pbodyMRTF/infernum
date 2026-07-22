@@ -2,10 +2,11 @@ package io.github.pbodyMRTF.infernum.server;
 
 public class ServerEntity {
     public int id;
-    public byte type; // EntitySnapshot sabitlerini kullan
+    public byte type;
     public float x, y;
     public float speed;
     public int hp;
+    public byte hitSoundThisTick = -1;
     public int maxHp;
     public boolean dead;
 

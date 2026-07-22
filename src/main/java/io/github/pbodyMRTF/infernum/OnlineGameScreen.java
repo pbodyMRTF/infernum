@@ -47,6 +47,8 @@ public class OnlineGameScreen implements Screen {
     private boolean gameReady = false;
     private String serverHost;
 
+
+
     // --- Camera ---
     private OrthographicCamera camera;
     private OrthographicCamera uiCamera;
@@ -75,7 +77,7 @@ public class OnlineGameScreen implements Screen {
     private Texture hotbar1, hotbar2, hotbar3;
 
     // --- Sounds ---
-    private Sound shootSound, smgSound, shotgunSound, popSound, woodSound;
+    private Sound shootSound, smgSound, shotgunSound, popSound, woodSound, tinSound, splatSound;
 
     // --- Input ---
     private static final int GAMEPAD_AXIS_RIGHT_X      = 2;
@@ -148,6 +150,8 @@ public class OnlineGameScreen implements Screen {
         bulletTex        = Assets.getTexture(Assets.Textures.BULLET);
         bulletSmgTex     = Assets.getTexture(Assets.Textures.BULLET_SMG);
         bulletPistolTex  = Assets.getTexture(Assets.Textures.BULLET_PISTOL);
+        tinSound         = Assets.getSound(Assets.Sounds.TIN);
+        splatSound       = Assets.getSound(Assets.Sounds.SPLAT);
     }
 
     private void connectToServer() {
@@ -279,14 +283,8 @@ public class OnlineGameScreen implements Screen {
     // ---------------------------------------------------------------
     private void handleNewState(GameState state) {
         if (currentState != null) {
-            for (PlayerSnapshot old : currentState.players) {
-                for (PlayerSnapshot neu : state.players) {
-                    if (old.playerId == neu.playerId && !old.dead && neu.dead) {
-                        spawnBlood(neu.x + 32, neu.y + 32, 50);
-                        woodSound.play(0.9f);
-                    }
-                }
-            }
+            // Oyuncu ölüm efekti (sadece kan parçacığı görsel farkı için kill anını da tespit ediyoruz;
+            // asıl hasar sesi/kan efekti aşağıdaki damagedThisTick bloğunda)
             for (EntitySnapshot old : currentState.entities) {
                 for (EntitySnapshot neu : state.entities) {
                     if (old.id == neu.id && !old.dead && neu.dead) {
@@ -297,22 +295,41 @@ public class OnlineGameScreen implements Screen {
             }
         }
 
-        // İnterpolasyon için: eski hedef → yeni "önceki", gelen → yeni "hedef"
+        // İnterpolasyon için
         prevState   = (targetState != null) ? targetState : state;
         targetState = state;
         interpTimer = 0f;
-
-        currentState = state; // score, game-over kontrolü gibi anlık şeyler için
+        currentState = state;
 
         boolean allDead = state.players.stream().allMatch(p -> p.dead);
         if (allDead) {
             game.setScreen(new MainMenuScreen(game));
         }
+
+        // Ateş sesi
         for (PlayerSnapshot ps : state.players) {
             if (ps.firedThisTick) {
                 playShotSound(ps.firedBulletType);
             }
+            // Oyuncu hasar aldı (ölsün ölmesin) — orijinal playerTakeDamage() davranışı
+            if (ps.damagedThisTick) {
+                spawnBlood(ps.x + 32, ps.y + 32, 50);
+                woodSound.play(0.9f);
+            }
         }
+
+        // Düşman isabet sesi (öldürsün öldürmesin)
+        for (EntitySnapshot es : state.entities) {
+            if (es.hitSoundType >= 0) {
+                playHitSound(es.hitSoundType);
+            }
+        }
+    }
+
+    private void playHitSound(byte type) {
+        if (type == 0) tinSound.play(1f);
+        else if (type == 1) splatSound.play();
+        else if (type == 2) { tinSound.play(1f); popSound.play(0.2f); }
     }
     private void playShotSound(byte bulletType) {
         // WeaponStats sabitleri: 0=AMMO(shotgun), 1=AMMO_SMG, 2=AMMO_PISTOL
