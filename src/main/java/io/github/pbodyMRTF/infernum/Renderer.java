@@ -1,5 +1,6 @@
 package io.github.pbodyMRTF.infernum;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -9,6 +10,8 @@ import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
@@ -53,12 +56,43 @@ public class Renderer {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+
+        float maxLookAheadDistance = 60f;
+
+
+        float targetX = player.getCenterX();
+        float targetY = player.getCenterY();
+
+
+
+        Vector3 mouseInWorld = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
+        camera.unproject(mouseInWorld);
+
+
+        float distX = mouseInWorld.x - player.getCenterX();
+        float distY = mouseInWorld.y - player.getCenterY();
+        float distance = Vector2.len(distX, distY);
+
+        // nomalize
+        if (distance > 1f) {
+            float lookFactor = Math.min(distance / 300f, 1f);
+            targetX += (distX / distance) * (maxLookAheadDistance * lookFactor);
+            targetY += (distY / distance) * (maxLookAheadDistance * lookFactor);
+        }
+
+
+
+        // Gdx.graphics.getDeltaTime() * 10f buradaki geçiş hızını belirler (değeri büyüttükçe hızlanır)
+        camera.position.x = MathUtils.lerp(camera.position.x, targetX, Gdx.graphics.getDeltaTime() * 5f);
+        camera.position.y = MathUtils.lerp(camera.position.y, targetY, Gdx.graphics.getDeltaTime() * 5f);
+
+        // 5. Harita sınırları dışına çıkmasını engelleme (Clamp)
         float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
         float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
 
-        camera.position.set(player.getCenterX(), player.getCenterY(), 0);
         camera.position.x = MathUtils.clamp(camera.position.x, viewport.getWorldWidth()  / 2, mapWidth  - viewport.getWorldWidth()  / 2);
         camera.position.y = MathUtils.clamp(camera.position.y, viewport.getWorldHeight() / 2, mapHeight - viewport.getWorldHeight() / 2);
+
         camera.update();
 
         renderMap(shaderTime);
