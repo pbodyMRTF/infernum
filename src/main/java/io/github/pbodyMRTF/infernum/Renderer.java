@@ -1,6 +1,5 @@
 package io.github.pbodyMRTF.infernum;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -30,13 +29,14 @@ public class Renderer {
     private Texture bayonetTex;
     private HUD hud;
     private DamageFlashManager damageFlashManager;
+    private LightingManager lighting;
 
     public Renderer(SpriteBatch batch, OrthographicCamera camera, OrthographicCamera uiCamera,
                     ExtendViewport viewport, OrthogonalTiledMapRenderer mapRenderer,
                     ShaderProgram shader1, ShaderProgram mapShader, ShaderProgram whiteShader,
                     TiledMapTileLayer groundLayer, EntityManager entityManager,
                     Texture bloodTex, Texture tozTex, Texture bayonetTex, HUD hud,
-                    DamageFlashManager damageFlashManager) {
+                    DamageFlashManager damageFlashManager, LightingManager lighting) {
         this.batch         = batch;
         this.camera        = camera;
         this.viewport      = viewport;
@@ -51,6 +51,7 @@ public class Renderer {
         this.bayonetTex    = bayonetTex;
         this.hud           = hud;
         this.damageFlashManager = damageFlashManager;
+        this.lighting      = lighting;
     }
 
     public void render(float shaderTime, Player player,
@@ -104,6 +105,7 @@ public class Renderer {
         renderBayonetAnim(player, showBayonetAnim, bayonetAnimTime);
         renderWorld(player, bullets, bloods, tozlar, currentTick);
         renderEnemies(shaderTime, currentTick);
+        lighting.render(camera);
         hud.render(batch, player, isSlowed, slowRemaining, score, bayonetCooldown, currentTick);
     }
 

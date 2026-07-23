@@ -13,6 +13,7 @@ version = '1.2.1'
 ext {
     appName = "infernum"
     gdxVersion = '1.12.1'
+    box2DLightsVersion = '1.5'
     mainClassName = "io.github.pbodyMRTF.infernum.DesktopLauncher"
     serverMainClassName = "io.github.pbodyMRTF.infernum.server.GameServer"
 }
@@ -39,10 +40,13 @@ dependencies {
     implementation "com.badlogicgames.gdx-controllers:gdx-controllers-desktop:2.2.4"
     implementation "com.esotericsoftware:kryonet:2.22.0-RC1"
 
-    // Server sadece bunu kullanacak (kryonet + transitive: kryo, minlog, reflectasm, objenesis)
+    // Box2D ve Box2D Lights bağımlılıkları (implementation olarak düzeltildi)
+    implementation "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-box2d-platform:$gdxVersion:natives-desktop"
+    implementation "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion"
+
     serverRuntime "com.esotericsoftware:kryonet:2.22.0-RC1"
 }
-
 application {
     mainClass = project.ext.mainClassName
 }

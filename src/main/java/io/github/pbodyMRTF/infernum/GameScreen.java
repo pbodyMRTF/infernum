@@ -26,6 +26,7 @@ public class GameScreen implements Screen {
     private SpriteBatch batch;
     private BitmapFont font;
     private GameTickManager tickManager;
+    private LightingManager lighting;
     private ShaderProgram shader1;
     private ShaderProgram mapShader;
     private ShaderProgram whiteShader;
@@ -314,6 +315,8 @@ public class GameScreen implements Screen {
         }
 
         player.update(delta, wallLayer, lowObstacleLayer);
+        float aimAngle = player.getAngleToMouse(camera);
+        lighting.updateConeLight(player.getCenterX(), player.getCenterY(), aimAngle);
         shootingHandler.handle(shootCooldown.isRunning(), tickManager.getCurrentTick());
         updateBloodParticles(delta);
         updateToz(delta);
@@ -421,14 +424,13 @@ public class GameScreen implements Screen {
         wallLayer = (TiledMapTileLayer) map.getLayers().get("dk2");
         lowObstacleLayer = (TiledMapTileLayer) map.getLayers().get("dk3");
         mapRenderer = new OrthogonalTiledMapRenderer(map, 3f);
-
-
         spawnManager.setGroundLayer(groundLayer);
+        lighting = new LightingManager();
 
 
         renderer = new Renderer(batch, camera, uiCamera, viewport, mapRenderer,
                 shader1, mapShader, whiteShader, groundLayer, entityManager,
-                bloodTex, tozTex, bayonetTex, hud, damageFlashManager);
+                bloodTex, tozTex, bayonetTex, hud, damageFlashManager, lighting);
     }
 
     @Override

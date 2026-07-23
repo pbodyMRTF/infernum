@@ -82,7 +82,7 @@ void main() {
     finalColor += grain;
 
     // DARKNESS
-    finalColor *= 0.2;
+    finalColor *= 0.5;
 
     gl_FragColor = vec4(finalColor, texColor.a) * v_color;
 }
