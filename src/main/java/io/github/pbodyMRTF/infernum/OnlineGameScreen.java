@@ -22,6 +22,11 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import io.github.pbodyMRTF.infernum.shared.*;
+import com.badlogic.gdx.physics.box2d.Body;
+import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.PolygonShape;
+
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -52,7 +57,8 @@ public class OnlineGameScreen implements Screen {
     private Sound sliceSound;
     private Map<Integer, Float> bayonetAnimTimers = new HashMap<>();
 
-
+    private TiledMapTileLayer wallLayer;
+    private LightingManager lighting;
 
     // --- Camera ---
     private OrthographicCamera camera;
@@ -398,7 +404,7 @@ public class OnlineGameScreen implements Screen {
         float mapWidth  = groundLayer.getWidth()  * groundLayer.getTileWidth()  * 3f;
         float mapHeight = groundLayer.getHeight() * groundLayer.getTileHeight() * 3f;
 
-        // --- Kamera: ölüysem diğer oyuncuyu izle ---
+        // --- Kamera: ölüysem diğer oyuncuyu izle, canlıysam look-ahead uygula ---
         PlayerSnapshot meTarget = findPlayer(targetState, myPlayerId);
         PlayerSnapshot camTarget = (meTarget != null && !meTarget.dead)
                 ? meTarget
@@ -408,7 +414,31 @@ public class OnlineGameScreen implements Screen {
             PlayerSnapshot camPrev = findPlayer(prevState, camTarget.playerId);
             float mx = (camPrev != null) ? lerp(camPrev.x, camTarget.x, t) : camTarget.x;
             float my = (camPrev != null) ? lerp(camPrev.y, camTarget.y, t) : camTarget.y;
-            camera.position.set(mx + 32, my + 32, 0);
+
+            float targetCamX = mx + 32;
+            float targetCamY = my + 32;
+
+            // Look-ahead: sadece kendi canlı oyuncumuzsa, mouse yönüne doğru kaydır
+            boolean isMeAndAlive = (meTarget != null && !meTarget.dead && camTarget.playerId == myPlayerId);
+            if (isMeAndAlive) {
+                float maxLookAheadDistance = 60f;
+                Vector3 mouseInWorld = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
+                camera.unproject(mouseInWorld);
+
+                float distX = mouseInWorld.x - targetCamX;
+                float distY = mouseInWorld.y - targetCamY;
+                float distance = (float) Math.sqrt(distX * distX + distY * distY);
+
+                if (distance > 1f) {
+                    float lookFactor = Math.min(distance / 300f, 1f);
+                    targetCamX += (distX / distance) * (maxLookAheadDistance * lookFactor);
+                    targetCamY += (distY / distance) * (maxLookAheadDistance * lookFactor);
+                }
+            }
+
+            camera.position.x = MathUtils.lerp(camera.position.x, targetCamX, Gdx.graphics.getDeltaTime() * 5f);
+            camera.position.y = MathUtils.lerp(camera.position.y, targetCamY, Gdx.graphics.getDeltaTime() * 5f);
+
             camera.position.x = MathUtils.clamp(camera.position.x, viewport.getWorldWidth()  / 2, mapWidth  - viewport.getWorldWidth()  / 2);
             camera.position.y = MathUtils.clamp(camera.position.y, viewport.getWorldHeight() / 2, mapHeight - viewport.getWorldHeight() / 2);
             camera.update();
@@ -442,21 +472,21 @@ public class OnlineGameScreen implements Screen {
             batch.draw(getBulletTexture(bt.bulletType), bx, by);
         }
 
+        // --- Işıkları güncelle (draw döngüsüyle aynı anda, her oyuncu için) ---
         for (PlayerSnapshot ps : targetState.players) {
-            if (ps.dead) continue;
+            if (ps.dead) { lighting.removeConeLight(ps.playerId); continue; }
             PlayerSnapshot pp = findPlayer(prevState, ps.playerId);
             float px = (pp != null) ? lerp(pp.x, ps.x, t) : ps.x;
             float py = (pp != null) ? lerp(pp.y, ps.y, t) : ps.y;
-            batch.draw(playerTex, px, py);
-            drawGun(ps, px, py);
 
             batch.draw(playerTex, px, py);
             drawGun(ps, px, py);
             if (bayonetAnimTimers.containsKey(ps.playerId)) {
                 renderBayonetAnim(px, py, bayonetAnimTimers.get(ps.playerId));
             }
-        }
 
+            lighting.updateConeLight(ps.playerId, px + 32, py + 32, ps.aimAngle);  // ← eklendi
+        }
 
         batch.end();
 
@@ -480,8 +510,9 @@ public class OnlineGameScreen implements Screen {
         batch.end();
         batch.setShader(null);
 
-        renderEnemyHealthBars();
+        lighting.render(camera);   // ← eklendi, HUD'dan önce çizilmeli (ışık dünyanın üstüne biner)
 
+        renderEnemyHealthBars();
         renderHUD();
     }
     private void renderBayonetAnim(float px, float py, float animTime) {
@@ -665,7 +696,41 @@ public class OnlineGameScreen implements Screen {
 
         map         = new TmxMapLoader().load("flape.tmx");
         groundLayer = (TiledMapTileLayer) map.getLayers().get(0);
+        wallLayer   = (TiledMapTileLayer) map.getLayers().get("dk2");   // ← eklendi
         mapRenderer = new OrthogonalTiledMapRenderer(map, 3f);
+
+        lighting = new LightingManager();                               // ← eklendi
+        buildLightWorldColliders(wallLayer);                             // ← eklendi
+    }
+
+    // --- Yeni yardımcı metod: duvar hücrelerinden box2d static body oluştur ---
+    private void buildLightWorldColliders(TiledMapTileLayer wallLayer) {
+        if (wallLayer == null) return;
+        float unitScale = 3f;
+        float tileW = wallLayer.getTileWidth()  * unitScale;
+        float tileH = wallLayer.getTileHeight() * unitScale;
+
+        for (int x = 0; x < wallLayer.getWidth(); x++) {
+            for (int y = 0; y < wallLayer.getHeight(); y++) {
+                if (wallLayer.getCell(x, y) == null) continue;
+
+                float cx = x * tileW + tileW / 2f;
+                float cy = y * tileH + tileH / 2f;
+
+                BodyDef bd = new BodyDef();
+                bd.type = BodyDef.BodyType.StaticBody;
+                bd.position.set(cx, cy);
+                Body body = lighting.getWorld().createBody(bd);
+
+                PolygonShape shape = new PolygonShape();
+                shape.setAsBox(tileW / 2f, tileH / 2f);
+
+                FixtureDef fd = new FixtureDef();
+                fd.shape = shape;
+                body.createFixture(fd);
+                shape.dispose();
+            }
+        }
     }
 
     @Override
@@ -680,9 +745,11 @@ public class OnlineGameScreen implements Screen {
     @Override public void resume() {}
     @Override public void hide()   {}
 
+
     @Override
     public void dispose() {
         if (networkClient != null) networkClient.disconnect();
+        if (lighting      != null) lighting.dispose();   // ← eklendi
         if (shader1    != null) shader1.dispose();
         if (mapShader  != null) mapShader.dispose();
         if (batch      != null) batch.dispose();
