@@ -22,30 +22,35 @@ public class Renderer {
     private OrthogonalTiledMapRenderer mapRenderer;
     private ShaderProgram shader1;
     private ShaderProgram mapShader;
+    private ShaderProgram whiteShader;
     private TiledMapTileLayer groundLayer;
     private EntityManager entityManager;
     private Texture bloodTex;
     private Texture tozTex;
     private Texture bayonetTex;
     private HUD hud;
+    private DamageFlashManager damageFlashManager;
 
     public Renderer(SpriteBatch batch, OrthographicCamera camera, OrthographicCamera uiCamera,
                     ExtendViewport viewport, OrthogonalTiledMapRenderer mapRenderer,
-                    ShaderProgram shader1, ShaderProgram mapShader,
+                    ShaderProgram shader1, ShaderProgram mapShader, ShaderProgram whiteShader,
                     TiledMapTileLayer groundLayer, EntityManager entityManager,
-                    Texture bloodTex, Texture tozTex, Texture bayonetTex, HUD hud) {
+                    Texture bloodTex, Texture tozTex, Texture bayonetTex, HUD hud,
+                    DamageFlashManager damageFlashManager) {
         this.batch         = batch;
         this.camera        = camera;
         this.viewport      = viewport;
         this.mapRenderer   = mapRenderer;
         this.shader1       = shader1;
         this.mapShader     = mapShader;
+        this.whiteShader   = whiteShader;
         this.groundLayer   = groundLayer;
         this.entityManager = entityManager;
         this.bloodTex      = bloodTex;
         this.tozTex        = tozTex;
         this.bayonetTex    = bayonetTex;
         this.hud           = hud;
+        this.damageFlashManager = damageFlashManager;
     }
 
     public void render(float shaderTime, Player player,
@@ -97,8 +102,8 @@ public class Renderer {
 
         renderMap(shaderTime);
         renderBayonetAnim(player, showBayonetAnim, bayonetAnimTime);
-        renderWorld(player, bullets, bloods, tozlar);
-        renderEnemies(shaderTime);
+        renderWorld(player, bullets, bloods, tozlar, currentTick);
+        renderEnemies(shaderTime, currentTick);
         hud.render(batch, player, isSlowed, slowRemaining, score, bayonetCooldown, currentTick);
     }
 
@@ -134,11 +139,19 @@ public class Renderer {
         batch.end();
     }
 
-    private void renderWorld(Player player, Array<Bullet> bullets, Array<BloodParticle> bloods, Array<toz> tozlar) {
+    private void renderWorld(Player player, Array<Bullet> bullets, Array<BloodParticle> bloods, Array<toz> tozlar, int currentTick) {
         batch.setProjectionMatrix(camera.combined);
-        batch.setShader(null);
+
+        // Player kendisi: hasar aldıysa whiteShader ile, aksi halde normal (shader yok)
+        boolean playerFlashing = damageFlashManager.isPlayerFlashing(currentTick);
+        batch.setShader(playerFlashing ? whiteShader : null);
         batch.begin();
         player.draw(batch);
+        batch.end();
+
+        // Geri kalan her şey (silah, mermiler, kan, toz) her zaman normal render edilir
+        batch.setShader(null);
+        batch.begin();
         player.drawGun(batch, camera);
         for (Bullet b : bullets)       batch.draw(b.getTexture(), b.x, b.y);
         for (BloodParticle b : bloods) batch.draw(bloodTex, b.x, b.y);
@@ -146,18 +159,31 @@ public class Renderer {
         batch.end();
     }
 
-    private void renderEnemies(float shaderTime) {
+    private void renderEnemies(float shaderTime, int currentTick) {
+        // 1. geçiş: hasar flaşı YAŞAMAYAN düşmanlar -> normal shader1 (kırmızı hasar shader'ı)
         batch.setShader(shader1);
         batch.begin();
         if (shader1.hasUniform("u_time")) shader1.setUniformf("u_time", shaderTime);
         for (Entity e : entityManager.getAll()) {
-            if (e.isDead()) continue;  // ölüyse atla
+            if (e.isDead()) continue;
+            if (damageFlashManager.isEnemyFlashing(e, currentTick)) continue;
             if (shader1.hasUniform("u_health")) {
                 shader1.setUniformf("u_health", e.getHp() / e.getMaxHp());
             }
             batch.draw(e.getTexture(), e.getX(), e.getY());
         }
         batch.end();
+
+        // 2. geçiş: hasar flaşı YAŞAYAN düşmanlar -> whiteShader
+        batch.setShader(whiteShader);
+        batch.begin();
+        for (Entity e : entityManager.getAll()) {
+            if (e.isDead()) continue;
+            if (!damageFlashManager.isEnemyFlashing(e, currentTick)) continue;
+            batch.draw(e.getTexture(), e.getX(), e.getY());
+        }
+        batch.end();
+
         batch.setShader(null);
     }
 }

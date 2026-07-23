@@ -28,6 +28,8 @@ public class GameScreen implements Screen {
     private GameTickManager tickManager;
     private ShaderProgram shader1;
     private ShaderProgram mapShader;
+    private ShaderProgram whiteShader;
+    private DamageFlashManager damageFlashManager = new DamageFlashManager();
     private float shaderTime = 0f;
     private ShapeRenderer shapeRenderer;
 
@@ -147,28 +149,27 @@ public class GameScreen implements Screen {
         spawnPlayer();
         hud = new HUD(font, shapeRenderer, heartTex, heartEmptyTex, regenHeartTex,
                 Hotbar1, Hotbar2, Hotbar3, game, entityManager, camera, uiCamera);
-        collisionHandler = new CollisionHandler(entityManager, bullets, bloods, player,
-                popSound, tinSound, splatSound,
-                new CollisionHandler.CollisionListener() {
-                    @Override
-                    public void onEnemyKilled(Entity e) {
-                        createBloodEffect(e.getX(), e.getY());
-                        if (e instanceof Enemy2) createTozEffect(e.getX(), e.getY());
-                        popSound.play(0.7f * MasterSound);
-                        score++;
-                    }
-                    @Override
-                    public void onPlayerDamaged() {
-                        playerTakeDamage();
-                    }
-                    @Override
-                    public void onPlayerSlowed(BloodParticle b) {
-                        isSlowed = true;
-                        slowdownTimer.start(tickManager.getCurrentTick());
-                        player.slowDown(300);
-
-                    }
-                });
+                collisionHandler = new CollisionHandler(entityManager, bullets, bloods, player,
+                        popSound, tinSound, splatSound, damageFlashManager,
+                        new CollisionHandler.CollisionListener() {
+                            @Override
+                            public void onEnemyKilled(Entity e) {
+                                createBloodEffect(e.getX(), e.getY());
+                                if (e instanceof Enemy2) createTozEffect(e.getX(), e.getY());
+                                popSound.play(0.7f * MasterSound);
+                                score++;
+                            }
+                            @Override
+                            public void onPlayerDamaged() {
+                                playerTakeDamage();
+                            }
+                            @Override
+                            public void onPlayerSlowed(BloodParticle b) {
+                                isSlowed = true;
+                                slowdownTimer.start(tickManager.getCurrentTick());
+                                player.slowDown(300);
+                            }
+                        });
         shootingHandler = new ShootingHandler(player, bullets, shootSound, SmgSound, ShotgunSound,
                 camera, new ShootingHandler.ShootingListener() {
             @Override
@@ -351,7 +352,7 @@ public class GameScreen implements Screen {
     }
 
     private void handleCollisions() {
-        collisionHandler.handleAll(hitCooldown.isRunning());
+        collisionHandler.handleAll(hitCooldown.isRunning(), tickManager.getCurrentTick());
     }
 
     private void createBloodEffect(float x, float y) {
@@ -400,30 +401,34 @@ public class GameScreen implements Screen {
                 Gdx.files.internal("shaders/red.vsh"),
                 Gdx.files.internal("shaders/red.fsh")
         );
+        whiteShader = new ShaderProgram(
+                Gdx.files.internal("shaders/white.vsh"),
+                Gdx.files.internal("shaders/white.fsh")
+        );
         mapShader = new ShaderProgram(
                 Gdx.files.internal("shaders/map.vsh"),
                 Gdx.files.internal("shaders/map.fsh")
         );
 
-        if (!shader1.isCompiled())   throw new GdxRuntimeException("Shader1 hata: "   + shader1.getLog());
+        if (!shader1.isCompiled()) throw new GdxRuntimeException("Shader1 hata: " + shader1.getLog());
         if (!mapShader.isCompiled()) throw new GdxRuntimeException("MapShader hata: " + mapShader.getLog());
+        if (!whiteShader.isCompiled()) throw new GdxRuntimeException("whiteShader hata:" + whiteShader.getLog());
 
         TmxMapLoader loader = new TmxMapLoader();
         map = loader.load("flape.tmx");
 
-        groundLayer      = (TiledMapTileLayer) map.getLayers().get(0);
-        wallLayer        = (TiledMapTileLayer) map.getLayers().get("dk2");
+        groundLayer = (TiledMapTileLayer) map.getLayers().get(0);
+        wallLayer = (TiledMapTileLayer) map.getLayers().get("dk2");
         lowObstacleLayer = (TiledMapTileLayer) map.getLayers().get("dk3");
-        mapRenderer      = new OrthogonalTiledMapRenderer(map, 3f);
+        mapRenderer = new OrthogonalTiledMapRenderer(map, 3f);
 
 
         spawnManager.setGroundLayer(groundLayer);
 
 
-
         renderer = new Renderer(batch, camera, uiCamera, viewport, mapRenderer,
-                shader1, mapShader, groundLayer, entityManager,
-                bloodTex, tozTex, bayonetTex, hud);
+                shader1, mapShader, whiteShader, groundLayer, entityManager,
+                bloodTex, tozTex, bayonetTex, hud, damageFlashManager);
     }
 
     @Override

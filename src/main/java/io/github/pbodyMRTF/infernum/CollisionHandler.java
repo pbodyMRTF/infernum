@@ -12,6 +12,7 @@ public class CollisionHandler {
     private Sound tinSound;
     private Sound splatSound;
     private CollisionListener listener;
+    private DamageFlashManager damageFlashManager;
     private boolean damageCalledThisFrame = false;
 
     private float MasterSound;
@@ -28,6 +29,7 @@ public class CollisionHandler {
     public CollisionHandler(EntityManager entityManager, Array<Bullet> bullets,
                             Array<BloodParticle> bloods, Player player,
                             Sound popSound, Sound tinSound, Sound splatSound,
+                            DamageFlashManager damageFlashManager,
                             CollisionListener listener) {
         this.entityManager = entityManager;
         this.bullets       = bullets;
@@ -36,6 +38,7 @@ public class CollisionHandler {
         this.popSound      = popSound;
         this.tinSound      = tinSound;
         this.splatSound    = splatSound;
+        this.damageFlashManager = damageFlashManager;
         this.listener      = listener;
 
 
@@ -43,19 +46,20 @@ public class CollisionHandler {
     }
 
 
-    public void handleAll(boolean hitCooldownRunning) {
+    public void handleAll(boolean hitCooldownRunning, int currentTick) {
         damageCalledThisFrame = false;
-        handleBulletEnemy();
-        handlePlayerEnemy(hitCooldownRunning);
+        handleBulletEnemy(currentTick);
+        handlePlayerEnemy(hitCooldownRunning, currentTick);
         handlePlayerBlood(hitCooldownRunning);
     }
-    private void handleBulletEnemy() {
+    private void handleBulletEnemy(int currentTick) {
         for (Entity e : entityManager.getAll()) {
             for (Bullet b : bullets) {
                 if (b.dead) continue;
                 if (!e.isDead() && checkBulletCollision(e.getX(), e.getY(), b.x, b.y)) {
                     int damage = resolveDamage(e, b);
                     e.setHp(e.getHp() - damage);
+                    damageFlashManager.triggerEnemyFlash(e, currentTick);
                     if (e.getHp() <= 0) {
                         e.setDead(true);
                         listener.onEnemyKilled(e);
@@ -65,11 +69,12 @@ public class CollisionHandler {
         }
     }
 
-    private void handlePlayerEnemy(boolean hitCooldownRunning) {
+    private void handlePlayerEnemy(boolean hitCooldownRunning, int currentTick) {
         if (player.dead || hitCooldownRunning || damageCalledThisFrame || godMode) return;
         for (Entity e : entityManager.getAll()) {
             if (!e.isDead() && checkPlayerCollision(e.getX(), e.getY())) {
                 damageCalledThisFrame = true;
+                damageFlashManager.triggerPlayerFlash(currentTick);
                 listener.onPlayerDamaged();
                 return;
             }
