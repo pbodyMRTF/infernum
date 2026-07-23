@@ -81,8 +81,8 @@ void main() {
     float grain = (noise(v_texCoords * u_time * 50.0) - 0.5) * 0.05;
     finalColor += grain;
 
-    // Orta seviye karanlık - cehennem ama çok değil
-    finalColor *= 0.72;
+    // DARKNESS
+    finalColor *= 0.2;
 
     gl_FragColor = vec4(finalColor, texColor.a) * v_color;
 }
