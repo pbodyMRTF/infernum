@@ -182,18 +182,18 @@ public class GameScreen implements Screen {
 
     private void applyDifficultySettings() {
         if (difficulty.equals("ZOR")) {
-            baseSpawnInterval  = 0.8f;
+            baseSpawnInterval  = 0.95f;
             minSpawnInterval   = 0.3f;
             shootCooldownTicks = 16;
             hitCooldownTicks   = 10;
         } else if (difficulty.equals("Ben Erlik Han'ım")) {
-            baseSpawnInterval  = 0.01f;
+            baseSpawnInterval  = 0.5f;
             minSpawnInterval   = 0f;
             shootCooldownTicks = 20;
             hitCooldownTicks   = 5;
         } else {
             baseSpawnInterval  = 1.2f;
-            minSpawnInterval   = 0.6f;
+            minSpawnInterval   = 0.75f;
             shootCooldownTicks = 16;
             hitCooldownTicks   = 16;
         }
