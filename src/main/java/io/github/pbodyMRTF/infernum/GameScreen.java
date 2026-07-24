@@ -426,6 +426,7 @@ public class GameScreen implements Screen {
         mapRenderer = new OrthogonalTiledMapRenderer(map, 3f);
         spawnManager.setGroundLayer(groundLayer);
         lighting = new LightingManager();
+        WallBodyBuilder.build(lighting.getWorld(), wallLayer);
 
 
         renderer = new Renderer(batch, camera, uiCamera, viewport, mapRenderer,
