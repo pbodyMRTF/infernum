@@ -99,7 +99,7 @@ public class GameServer {
 
         spawnManager = new ServerSpawnManager(
                 entityManager, mapWidth, mapHeight,
-                new Random(), 1.2f, 0.6f
+                new Random(), 1.2f, 0.5f
         );
 
         lastTime = System.nanoTime();
