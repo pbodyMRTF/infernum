@@ -73,22 +73,21 @@ public class OnlineLobbyScreen implements Screen {
 
         font.getData().setScale(2.0f);
         font.setColor(1, 0.3f, 0.2f, menuAlpha);
-        font.draw(batch, game.bundle.get("lobby.title"), VIRTUAL_WIDTH / 2f - 160, VIRTUAL_HEIGHT - 100);
+        font.draw(batch, "SUNUCUYA BAĞLAN", VIRTUAL_WIDTH / 2f - 160, VIRTUAL_HEIGHT - 100);
         font.getData().setScale(1f);
 
         float centerX = VIRTUAL_WIDTH / 2f - 150;
         float labelY  = VIRTUAL_HEIGHT / 2f + 100;
 
         font.setColor(1, 1, 1, menuAlpha);
-        font.draw(batch, game.bundle.get("lobby.serverIp"), centerX, labelY);
+        font.draw(batch, "Sunucu IP:", centerX, labelY);
 
         // Giriş alanı, seçili menü öğesi gibi vurgulanır ve yanıp söner
         font.setColor(1, 1, 0, menuAlpha * selectionBlink);
-        String cursor = ((int) (labelY) % 2 == 0) ? "_" : "_";
-        font.draw(batch, "> " + ipInput.toString() + cursor + " <", centerX, labelY - 60);
+        font.draw(batch, "> " + ipInput.toString() + "_ <", centerX, labelY - 60);
 
         font.setColor(1, 1, 1, menuAlpha);
-        font.draw(batch, game.bundle.get("lobby.hint"), centerX, labelY - 140);
+        font.draw(batch, "[ENTER] Bağlan   [ESC] Geri", centerX, labelY - 140);
 
         if (!statusMessage.isEmpty()) {
             font.setColor(0.6f, 1f, 0.6f, menuAlpha);
@@ -137,6 +136,29 @@ public class OnlineLobbyScreen implements Screen {
             return;
         }
 
+        boolean ctrlDown = Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)
+                || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT);
+
+        // Ctrl+V: panodaki metni yapıştır
+        if (ctrlDown && Gdx.input.isKeyJustPressed(Input.Keys.V)) {
+            String clipboard = Gdx.app.getClipboard().getContents();
+            if (clipboard != null) {
+                for (int i = 0; i < clipboard.length(); i++) {
+                    char c = clipboard.charAt(i);
+                    if (c >= 32 && c < 127) {
+                        ipInput.append(c);
+                    }
+                }
+            }
+            return;
+        }
+
+        // Ctrl+C: mevcut girdiyi panoya kopyala
+        if (ctrlDown && Gdx.input.isKeyJustPressed(Input.Keys.C)) {
+            Gdx.app.getClipboard().setContents(ipInput.toString());
+            return;
+        }
+
         // Basit karakter yakalama (rakam, nokta, harf)
         for (int key = Input.Keys.A; key <= Input.Keys.Z; key++) {
             if (Gdx.input.isKeyJustPressed(key)) {
@@ -156,7 +178,7 @@ public class OnlineLobbyScreen implements Screen {
     private void startConnection() {
         ConfirmSound.play();
         connecting    = true;
-        statusMessage = game.bundle.get("lobby.connecting");
+        statusMessage = "Bağlanılıyor...";
         game.setScreen(new OnlineGameScreen(game, ipInput.toString().trim()));
     }
 
