@@ -163,7 +163,12 @@ public class MainMenuScreen implements Screen {
     private void drawMenuItem(String label, float y, int index) {
         if (selectedOption == index) {
             fontMenu.setColor(1, 1, 0, menuAlpha * selectionBlink);
-            fontMenu.draw(batch, "<-", menuStartX + 130f, y); // ok sabit noktada
+            if (GameConfig.language.equals("en")){
+                fontMenu.draw(batch, "<-", menuStartX + 175f, y);
+            } else {
+                fontMenu.draw(batch, "<-", menuStartX + 225f, y);
+            }
+
             fontMenu.draw(batch, label, menuStartX, y);
         } else {
             fontMenu.setColor(1, 1, 1, menuAlpha);
