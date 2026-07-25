@@ -369,8 +369,16 @@ public class OnlineGameScreen implements Screen {
         }
         batch.end();
     }
-    private float lerp(float a, float b, float t) { return a + (b - a) * t; }
+    private float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
 
+    private float lerpAngle(float a, float b, float t) {
+        float diff = b - a;
+        while (diff > 180f)  diff -= 360f;
+        while (diff < -180f) diff += 360f;
+        return a + diff * t;
+    }
     private PlayerSnapshot findPlayer(GameState s, int pid) {
         for (PlayerSnapshot p : s.players) if (p.playerId == pid) return p;
         return null;
@@ -479,13 +487,16 @@ public class OnlineGameScreen implements Screen {
             float px = (pp != null) ? lerp(pp.x, ps.x, t) : ps.x;
             float py = (pp != null) ? lerp(pp.y, ps.y, t) : ps.y;
 
+            // ← eklendi: açıyı da interpolasyonlu hesapla
+            float angle = (pp != null) ? lerpAngle(pp.aimAngle, ps.aimAngle, t) : ps.aimAngle;
+
             batch.draw(playerTex, px, py);
-            drawGun(ps, px, py);
+            drawGun(ps, px, py, angle);                         // ← angle parametresi eklendi
             if (bayonetAnimTimers.containsKey(ps.playerId)) {
                 renderBayonetAnim(px, py, bayonetAnimTimers.get(ps.playerId));
             }
 
-            lighting.updateConeLight(ps.playerId, px + 32, py + 32, ps.aimAngle);  // ← eklendi
+            lighting.updateConeLight(ps.playerId, px + 32, py + 32, angle);  // ← ps.aimAngle yerine angle
         }
 
         batch.end();
@@ -564,12 +575,11 @@ public class OnlineGameScreen implements Screen {
         shapeRenderer.end();
     }
 
-    private void drawGun(PlayerSnapshot p, float px, float py) {
+    private void drawGun(PlayerSnapshot p, float px, float py, float angle) {
         Weapons weapon = slotToWeapon(p.weaponSlot);
         if (weapon == null) return;
         Texture gunTex = Assets.getTexture(weapon.getGunTexturePath());
         float scale    = weapon.getGunScale();
-        float angle    = p.aimAngle;
 
         batch.draw(
                 gunTex,
