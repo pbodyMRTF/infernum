@@ -3,59 +3,127 @@ package io.github.pbodyMRTF.infernum;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.audio.Sound;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 public class OnlineLobbyScreen implements Screen {
 
-    private static final float UI_WIDTH  = 1024f;
-    private static final float UI_HEIGHT = 768f;
+    final Jgame game;
+    SpriteBatch batch;
+    ShapeRenderer shapeRenderer;
+    BitmapFont font;
 
-    private final Jgame game;
-    private SpriteBatch batch;
-    private BitmapFont font;
     private OrthographicCamera camera;
     private ExtendViewport viewport;
+    private static final float VIRTUAL_WIDTH  = 1024f;
+    private static final float VIRTUAL_HEIGHT = 768f;
+
+    private Sound Select;
+    private Sound ConfirmSound;
+
+    private float menuAlpha      = 0f;
+    private float backgroundHue  = 0f;
+    private float selectionBlink = 0f;
 
     private StringBuilder ipInput = new StringBuilder("localhost");
-    private boolean connecting = false;
-    private String statusMessage = "";
+    private boolean connecting    = false;
+    private String  statusMessage = "";
 
-    public OnlineLobbyScreen(Jgame game) {
-        this.game = game;
-        batch  = new SpriteBatch();
-        font   = game.getFont(Jgame.FONT_SIZE_32);
-        camera = new OrthographicCamera();
-        viewport = new ExtendViewport(UI_WIDTH, UI_HEIGHT, camera);
-        camera.position.set(UI_WIDTH / 2, UI_HEIGHT / 2, 0);
+    public OnlineLobbyScreen(final Jgame game) {
+        this.game          = game;
+        this.batch         = new SpriteBatch();
+        this.shapeRenderer = new ShapeRenderer();
+        this.font          = game.getFont(Jgame.FONT_SIZE_32);
+
+        camera   = new OrthographicCamera();
+        viewport = new ExtendViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, camera);
+        camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
+        loadAssets();
+    }
+
+    private void loadAssets() {
+        Select        = Assets.getSound(Assets.Sounds.SELECT);
+        ConfirmSound  = Assets.getSound(Assets.Sounds.CONFIRM);
     }
 
     @Override
     public void render(float delta) {
-        Gdx.gl.glClearColor(0, 0, 0, 1);
+        updateAnimations(delta);
+
+        Color bgColor = new Color();
+        bgColor.fromHsv(backgroundHue, 0.6f, 0.3f);
+        Gdx.gl.glClearColor(bgColor.r, bgColor.g, bgColor.b, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        handleInput();
+        camera.update();
+
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        drawDecorations();
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
-        font.draw(batch, "Sunucu IP:", 300, 450);
-        font.draw(batch, ipInput.toString() + "_", 300, 400);
-        font.draw(batch, "[ENTER] Bağlan   [ESC] Geri", 300, 350);
+
+        font.getData().setScale(2.0f);
+        font.setColor(1, 0.3f, 0.2f, menuAlpha);
+        font.draw(batch, game.bundle.get("lobby.title"), VIRTUAL_WIDTH / 2f - 160, VIRTUAL_HEIGHT - 100);
+        font.getData().setScale(1f);
+
+        float centerX = VIRTUAL_WIDTH / 2f - 150;
+        float labelY  = VIRTUAL_HEIGHT / 2f + 100;
+
+        font.setColor(1, 1, 1, menuAlpha);
+        font.draw(batch, game.bundle.get("lobby.serverIp"), centerX, labelY);
+
+        // Giriş alanı, seçili menü öğesi gibi vurgulanır ve yanıp söner
+        font.setColor(1, 1, 0, menuAlpha * selectionBlink);
+        String cursor = ((int) (labelY) % 2 == 0) ? "_" : "_";
+        font.draw(batch, "> " + ipInput.toString() + cursor + " <", centerX, labelY - 60);
+
+        font.setColor(1, 1, 1, menuAlpha);
+        font.draw(batch, game.bundle.get("lobby.hint"), centerX, labelY - 140);
+
         if (!statusMessage.isEmpty()) {
-            font.draw(batch, statusMessage, 300, 300);
+            font.setColor(0.6f, 1f, 0.6f, menuAlpha);
+            font.draw(batch, statusMessage, centerX, labelY - 200);
         }
+
+        font.setColor(0.7f, 0.7f, 0.7f, menuAlpha * 0.6f);
+        font.getData().setScale(0.8f);
+        font.draw(batch, "" + Jgame.Version, 20, 40);
+        font.getData().setScale(1f);
+
         batch.end();
+
+        handleInput();
+    }
+
+    private void updateAnimations(float delta) {
+        menuAlpha      = Math.min(menuAlpha + delta * 1.2f, 1f);
+        backgroundHue  = (backgroundHue + delta * 20f) % 360f;
+        selectionBlink = MathUtils.sin(Gdx.graphics.getFrameId() * 0.1f) * 0.3f + 0.7f;
+    }
+
+    private void drawDecorations() {
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(1, 1, 1, 0.2f);
+        float padding = 30;
+        shapeRenderer.rect(padding, padding, VIRTUAL_WIDTH - padding * 2, VIRTUAL_HEIGHT - padding * 2);
+        shapeRenderer.end();
     }
 
     private void handleInput() {
         if (connecting) return;
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            Select.play();
             game.setScreen(new MainMenuScreen(game));
             return;
         }
@@ -86,23 +154,27 @@ public class OnlineLobbyScreen implements Screen {
     }
 
     private void startConnection() {
-        connecting = true;
-        statusMessage = "Bağlanılıyor...";
+        ConfirmSound.play();
+        connecting    = true;
+        statusMessage = game.bundle.get("lobby.connecting");
         game.setScreen(new OnlineGameScreen(game, ipInput.toString().trim()));
     }
 
-    @Override public void show() {}
-    @Override public void resize(int width, int height) {
+    @Override public void show()   {}
+    @Override public void pause()  {}
+    @Override public void resume() {}
+    @Override public void hide()   {}
+
+    @Override
+    public void resize(int width, int height) {
         viewport.update(width, height, true);
-        camera.position.set(UI_WIDTH / 2, UI_HEIGHT / 2, 0);
+        camera.position.set(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, 0);
         camera.update();
     }
-    @Override public void pause() {}
-    @Override public void resume() {}
-    @Override public void hide() {}
 
     @Override
     public void dispose() {
-        if (batch != null) batch.dispose();
+        batch.dispose();
+        shapeRenderer.dispose();
     }
 }
