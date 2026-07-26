@@ -127,7 +127,14 @@ public class GameServer {
             float dt = (now - lastTime) / 1_000_000_000f;
             lastTime = now;
 
-            if (connectedCount == 2) tick(dt);
+            if (connectedCount == 2) {
+                try {
+                    tick(dt);
+                } catch (Exception ex) {
+                    System.err.println("Tick Error:");
+                    ex.printStackTrace();
+                }
+            }
 
             long elapsed = System.nanoTime() - now;
             long sleep   = (long)(ServerTickTimer.TICK_RATE * 1_000_000_000L) - elapsed;
