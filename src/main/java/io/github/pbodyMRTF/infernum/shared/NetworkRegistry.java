@@ -19,5 +19,8 @@ public class NetworkRegistry {
         kryo.register(JoinMessage.class);
         kryo.register(JoinAckMessage.class);
         kryo.register(ArrayList.class);
+
+        kryo.setReferences(false);
+        kryo.setRegistrationRequired(true);
     }
 }
