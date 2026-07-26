@@ -229,8 +229,10 @@ public class GameServer {
         if (in.left)  mx -= PLAYER_SPEED * dt;
         if (in.right) mx += PLAYER_SPEED * dt;
 
-        if (Math.abs(in.gamepadMoveX) > 0.2f) mx += in.gamepadMoveX * PLAYER_SPEED * dt;
-        if (Math.abs(in.gamepadMoveY) > 0.2f) my -= in.gamepadMoveY * PLAYER_SPEED * dt;
+        float gx = clamp(in.gamepadMoveX, -1f, 1f);
+        float gy = clamp(in.gamepadMoveY, -1f, 1f);
+        if (Math.abs(gx) > 0.2f) mx += gx * PLAYER_SPEED * dt;
+        if (Math.abs(gy) > 0.2f) my -= gy * PLAYER_SPEED * dt;
 
         float nextX = p.x + mx;
         float nextY = p.y + my;
