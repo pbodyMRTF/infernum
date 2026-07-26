@@ -33,6 +33,8 @@ public class GameServer {
     private int nextBulletId = 0;
     private int nextEntityId = 0; // ServerSpawnManager içinde yönetiliyor zaten
 
+    private final java.util.Queue<PlayerInput> pendingInputs = new java.util.concurrent.ConcurrentLinkedQueue<>();
+
     private int  currentTick = 0;
     private long lastTime;
 
@@ -89,7 +91,20 @@ public class GameServer {
 
             @Override
             public void received(Connection c, Object obj) {
-                if (obj instanceof PlayerInput) handleInput((PlayerInput) obj);
+                if (!(obj instanceof PlayerInput)) return;
+                PlayerInput input = (PlayerInput) obj;
+
+                ServerPlayerState owner = getPlayerByConnection(c.getID());
+                if (owner == null || owner.playerId != input.playerId) {
+                    System.out.println("WARNING: Player ID spoofing attempt detected, connID=" + c.getID());
+                    return;
+                }
+                pendingInputs.add(input);
+            }
+
+            private ServerPlayerState getPlayerByConnection(int connId) {
+                for (ServerPlayerState p : players) if (p != null && p.connectionId == connId) return p;
+                return null;
             }
         });
 
