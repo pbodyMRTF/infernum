@@ -203,7 +203,10 @@ public class GameServer {
         if (p == null || p.dead) return;
         p.lastInput = input;
 
-        if (input.weaponSlot > 0 && input.weaponSlot != p.weaponSlot) {
+        if (input.weaponSlot > 0
+                && input.weaponSlot >= MIN_WEAPON_SLOT
+                && input.weaponSlot <= MAX_WEAPON_SLOT
+                && input.weaponSlot != p.weaponSlot) {
             p.weaponSlot = input.weaponSlot;
             p.shootCooldown.stop(); // GameScreen'deki weaponJustChanged davranışı
         }
