@@ -23,7 +23,7 @@ public class GameServer {
     private float mapWidth, mapHeight;
 
     private final ServerPlayerState[] players = new ServerPlayerState[2];
-    private int connectedCount = 0;
+    private volatile int connectedCount = 0;
 
     private ServerEntityManager entityManager = new ServerEntityManager();
     private ServerSpawnManager spawnManager;
@@ -140,7 +140,8 @@ public class GameServer {
 
     private void tick(float dt) {
         currentTick++;
-
+        PlayerInput in;
+        while ((in = pendingInputs.poll()) != null) handleInput(in);
 
 
         entityManager.cleanup();
