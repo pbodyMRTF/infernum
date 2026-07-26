@@ -54,43 +54,59 @@ public class GameServer {
         server.addListener(new Listener() {
             @Override
             public void connected(Connection c) {
-                int pid = -1;
-                for (int i = 0; i < players.length; i++) {
-                    if (players[i] == null) { pid = i; break; }
-                }
-                if (pid == -1) { c.close(); return; }
+                synchronized (players) {
+                    int pid = -1;
+                    for (int i = 0; i < players.length; i++) {
+                        if (players[i] == null) { pid = i; break; }
+                    }
+                    if (pid == -1) { c.close(); return; }
 
-                players[pid] = new ServerPlayerState(pid, c.getID());
-                connectedCount++;
-                System.out.println("Oyuncu " + pid + " bağlandı. connID=" + c.getID());
+                    players[pid] = new ServerPlayerState(pid, c.getID());
+                    connectedCount++;
+                    System.out.println("Player " + pid + " Connected. connID=" + c.getID());
 
-                JoinAckMessage ack = new JoinAckMessage();
-                ack.assignedPlayerId = pid;
-                ack.gameReady        = (connectedCount == 2);
-                server.sendToTCP(c.getID(), ack);
+                    JoinAckMessage ack = new JoinAckMessage();
+                    ack.assignedPlayerId = pid;
+                    ack.gameReady        = (connectedCount == 2);
+                    server.sendToTCP(c.getID(), ack);
 
-                if (connectedCount == 2) {
-                    JoinAckMessage ack0 = new JoinAckMessage();
-                    ack0.assignedPlayerId = 0;
-                    ack0.gameReady        = true;
-                    server.sendToTCP(players[0].connectionId, ack0);
-                }
-            }
-
-            @Override
-            public void disconnected(Connection c) {
-                for (int i = 0; i < players.length; i++) {
-                    ServerPlayerState p = players[i];
-                    if (p != null && p.connectionId == c.getID()) {
-                        System.out.println("Oyuncu " + p.playerId + " ayrıldı.");
-                        players[i] = null;
-                        connectedCount--;
+                    if (connectedCount == 2) {
+                        JoinAckMessage ack0 = new JoinAckMessage();
+                        ack0.assignedPlayerId = 0;
+                        ack0.gameReady        = true;
+                        server.sendToTCP(players[0].connectionId, ack0);
                     }
                 }
             }
 
             @Override
-            public void received(Connection c, Object obj) {
+            public void disconnected(Connection c) {
+                synchronized (players) {
+                    for (int i = 0; i < players.length; i++) {
+                        ServerPlayerState p = players[i];
+                        if (p != null && p.connectionId == c.getID()) {
+                            System.out.println("Player " + p.playerId + " disconnected.");
+                            players[i] = null;
+                            connectedCount--;
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void received(Connection c, Object obj) { 
+                // İstemcinin gönderdiği ama işlemediğimiz mesajlar (örn. JoinMessage)
+                // burada sessizce yok sayılır; onları işlemeye çalışmak gereksiz
+                // saldırı yüzeyi açar.
+                if (obj instanceof JoinMessage) {
+                    JoinMessage jm = (JoinMessage) obj;
+                    if (jm.playerName == null || jm.playerName.length() > MAX_PLAYER_NAME_LEN) {
+                        System.out.println("UYARI: geçersiz JoinMessage, connID=" + c.getID() + " -> bağlantı kapatılıyor");
+                        c.close();
+                    }
+                    return;
+                }
+
                 if (!(obj instanceof PlayerInput)) return;
                 PlayerInput input = (PlayerInput) obj;
 
