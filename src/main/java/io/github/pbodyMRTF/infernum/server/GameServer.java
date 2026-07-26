@@ -18,6 +18,13 @@ public class GameServer {
     private static final int HIT_COOLDOWN_TICKS              = 16;
     private static final int BAYONET_COOLDOWN_TICKS          = 60;
 
+    // WeaponStats.forSlot zaten default case ile korunuyor, ama savunma amaçlı
+    // burada da açıkça sınırlıyoruz (defense-in-depth).
+    private static final int MIN_WEAPON_SLOT = WeaponStats.SLOT_PISTOL;
+    private static final int MAX_WEAPON_SLOT = WeaponStats.SLOT_SMG;
+
+    private static final int MAX_PLAYER_NAME_LEN = 32;
+
     private Server server;
     private CollisionGrid collisionGrid;
     private float mapWidth, mapHeight;
@@ -31,7 +38,7 @@ public class GameServer {
 
     private List<ServerBullet> bullets = new ArrayList<>();
     private int nextBulletId = 0;
-    private int nextEntityId = 0; // ServerSpawnManager içinde yönetiliyor zaten
+
 
     private final java.util.Queue<PlayerInput> pendingInputs = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
@@ -94,7 +101,7 @@ public class GameServer {
             }
 
             @Override
-            public void received(Connection c, Object obj) { 
+            public void received(Connection c, Object obj) {
                 // İstemcinin gönderdiği ama işlemediğimiz mesajlar (örn. JoinMessage)
                 // burada sessizce yok sayılır; onları işlemeye çalışmak gereksiz
                 // saldırı yüzeyi açar.
@@ -111,15 +118,20 @@ public class GameServer {
                 PlayerInput input = (PlayerInput) obj;
 
                 ServerPlayerState owner = getPlayerByConnection(c.getID());
+
+
                 if (owner == null || owner.playerId != input.playerId) {
-                    System.out.println("WARNING: Player ID spoofing attempt detected, connID=" + c.getID());
+                    System.out.println("WARNING: Player ID spoofing attempt detected, connID=" + c.getID()
+                            + " claimed=" + input.playerId);
                     return;
                 }
                 pendingInputs.add(input);
             }
 
             private ServerPlayerState getPlayerByConnection(int connId) {
-                for (ServerPlayerState p : players) if (p != null && p.connectionId == connId) return p;
+                synchronized (players) {
+                    for (ServerPlayerState p : players) if (p != null && p.connectionId == connId) return p;
+                }
                 return null;
             }
         });
@@ -163,9 +175,10 @@ public class GameServer {
 
     private void tick(float dt) {
         currentTick++;
+
+
         PlayerInput in;
         while ((in = pendingInputs.poll()) != null) handleInput(in);
-
 
         entityManager.cleanup();
         bullets.removeIf(b -> b.dead);
@@ -230,7 +243,8 @@ public class GameServer {
         p.prevFireHeld = fireHeld;
 
         if (shouldFire && !p.shootCooldown.isRunning()) {
-            spawnBullets(p, input.aimAngle, w);
+            float angle = Float.isFinite(input.aimAngle) ? input.aimAngle : 0f;
+            spawnBullets(p, angle, w);
             p.shootCooldown = new ServerTickTimer(w.fireRateTicks);
             p.shootCooldown.start(currentTick);
             p.firedThisTick = true;
@@ -247,6 +261,7 @@ public class GameServer {
         if (in.down)  my -= PLAYER_SPEED * dt;
         if (in.left)  mx -= PLAYER_SPEED * dt;
         if (in.right) mx += PLAYER_SPEED * dt;
+
 
         float gx = clamp(in.gamepadMoveX, -1f, 1f);
         float gy = clamp(in.gamepadMoveY, -1f, 1f);
@@ -445,8 +460,6 @@ public class GameServer {
             ps.firedThisTick   = p.firedThisTick;
             ps.firedBulletType = p.firedBulletType;
             ps.damagedThisTick = p.damagedThisTick;
-            state.players.add(ps);
-
             ps.bayonetUsedThisTick      = p.bayonetUsedThisTick;
             ps.bayonetOnCooldown        = p.bayonetCooldown.isRunning();
             ps.bayonetCooldownProgress  = p.bayonetCooldown.isRunning()
