@@ -135,6 +135,14 @@ public class GameServer {
                             + " claimed=" + input.playerId);
                     return;
                 }
+
+                // FIX: NaN/Infinity aimAngle burada hemen temizlenir. Daha
+                // önce sadece ateş anında (spawnBullets çağrılırken)
+                // filtreleniyordu; bu haliyle geçersiz açı hâlâ p.lastInput'a
+                // yazılıp broadcastGameState ile DİĞER oyuncuya olduğu gibi
+                // gönderiliyordu (griefing / istemci tarafı NaN yayılımı riski).
+                if (!Float.isFinite(input.aimAngle)) input.aimAngle = 0f;
+
                 pendingInputs.add(input);
             }
 
