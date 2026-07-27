@@ -42,13 +42,16 @@ public class GameServer {
     private final ServerPlayerState[] players = new ServerPlayerState[2];
     private volatile int connectedCount = 0;
 
+    // FIX: bağlantı kurulmuş ama henüz geçerli JoinMessage doğrulanmamış
+    // bağlantıların join-deadline'ını takip eder. Slot burada AYRILMAZ.
+    private final Map<Integer, Long> pendingJoinDeadline = new HashMap<>();
+
     private ServerEntityManager entityManager = new ServerEntityManager();
     private ServerSpawnManager spawnManager;
     private int score = 0;
 
     private List<ServerBullet> bullets = new ArrayList<>();
     private int nextBulletId = 0;
-
 
     private final java.util.Queue<PlayerInput> pendingInputs = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
@@ -71,34 +74,18 @@ public class GameServer {
         server.addListener(new Listener() {
             @Override
             public void connected(Connection c) {
+                // FIX: Slot artık burada ASLA verilmiyor. Bağlantı sadece
+                // "join bekliyor" olarak işaretlenir ve bir deadline konur.
+                // Böylece hiçbir şey göndermeyen bir bağlantı slot işgal edemez.
                 synchronized (players) {
-                    int pid = -1;
-                    for (int i = 0; i < players.length; i++) {
-                        if (players[i] == null) { pid = i; break; }
-                    }
-                    if (pid == -1) { c.close(); return; }
-
-                    players[pid] = new ServerPlayerState(pid, c.getID());
-                    connectedCount++;
-                    System.out.println("Player " + pid + " Connected. connID=" + c.getID());
-
-                    JoinAckMessage ack = new JoinAckMessage();
-                    ack.assignedPlayerId = pid;
-                    ack.gameReady        = (connectedCount == 2);
-                    server.sendToTCP(c.getID(), ack);
-
-                    if (connectedCount == 2) {
-                        JoinAckMessage ack0 = new JoinAckMessage();
-                        ack0.assignedPlayerId = 0;
-                        ack0.gameReady        = true;
-                        server.sendToTCP(players[0].connectionId, ack0);
-                    }
+                    pendingJoinDeadline.put(c.getID(), System.currentTimeMillis() + JOIN_TIMEOUT_MS);
                 }
             }
 
             @Override
             public void disconnected(Connection c) {
                 synchronized (players) {
+                    pendingJoinDeadline.remove(c.getID());
                     for (int i = 0; i < players.length; i++) {
                         ServerPlayerState p = players[i];
                         if (p != null && p.connectionId == c.getID()) {
@@ -112,14 +99,47 @@ public class GameServer {
 
             @Override
             public void received(Connection c, Object obj) {
-                // İstemcinin gönderdiği ama işlemediğimiz mesajlar (örn. JoinMessage)
-                // burada sessizce yok sayılır; onları işlemeye çalışmak gereksiz
-                // saldırı yüzeyi açar.
                 if (obj instanceof JoinMessage) {
                     JoinMessage jm = (JoinMessage) obj;
-                    if (jm.playerName == null || jm.playerName.length() > MAX_PLAYER_NAME_LEN) {
+                    if (jm.playerName == null || jm.playerName.isEmpty()
+                            || jm.playerName.length() > MAX_PLAYER_NAME_LEN) {
                         System.out.println("UYARI: geçersiz JoinMessage, connID=" + c.getID() + " -> bağlantı kapatılıyor");
                         c.close();
+                        return;
+                    }
+
+                    // FIX: Slot ataması artık SADECE geçerli bir JoinMessage
+                    // doğrulandıktan sonra yapılıyor.
+                    synchronized (players) {
+                        // Zaten bu bağlantı için bir oyuncu atanmışsa (duplicate
+                        // JoinMessage) tekrar slot verme.
+                        for (ServerPlayerState p : players) {
+                            if (p != null && p.connectionId == c.getID()) return;
+                        }
+
+                        pendingJoinDeadline.remove(c.getID());
+
+                        int pid = -1;
+                        for (int i = 0; i < players.length; i++) {
+                            if (players[i] == null) { pid = i; break; }
+                        }
+                        if (pid == -1) { c.close(); return; }
+
+                        players[pid] = new ServerPlayerState(pid, c.getID());
+                        connectedCount++;
+                        System.out.println("Player " + pid + " Connected. connID=" + c.getID());
+
+                        JoinAckMessage ack = new JoinAckMessage();
+                        ack.assignedPlayerId = pid;
+                        ack.gameReady        = (connectedCount == 2);
+                        server.sendToTCP(c.getID(), ack);
+
+                        if (connectedCount == 2) {
+                            JoinAckMessage ack0 = new JoinAckMessage();
+                            ack0.assignedPlayerId = 0;
+                            ack0.gameReady        = true;
+                            server.sendToTCP(players[0].connectionId, ack0);
+                        }
                     }
                     return;
                 }
@@ -128,7 +148,6 @@ public class GameServer {
                 PlayerInput input = (PlayerInput) obj;
 
                 ServerPlayerState owner = getPlayerByConnection(c.getID());
-
 
                 if (owner == null || owner.playerId != input.playerId) {
                     System.out.println("WARNING: Player ID spoofing attempt detected, connID=" + c.getID()
@@ -173,6 +192,12 @@ public class GameServer {
             float dt = (now - lastTime) / 1_000_000_000f;
             lastTime = now;
 
+            // FIX: join-timeout süresi geçmiş ama hâlâ JoinMessage
+            // göndermemiş bağlantıları kapat (bedava/sonsuz bekleme DoS'unu
+            // önler). Bu bağlantılar zaten slot almadığı için players[]
+            // içinde bir kaydı yok, sadece kapatılmaları yeterli.
+            checkJoinTimeouts();
+
             if (connectedCount == 2) {
                 try {
                     tick(dt);
@@ -189,6 +214,36 @@ public class GameServer {
                 catch (InterruptedException ignored) {}
             }
         }
+    }
+
+    private void checkJoinTimeouts() {
+        long now = System.currentTimeMillis();
+        List<Integer> expired = null;
+        synchronized (players) {
+            for (Map.Entry<Integer, Long> e : pendingJoinDeadline.entrySet()) {
+                if (now >= e.getValue()) {
+                    if (expired == null) expired = new ArrayList<>();
+                    expired.add(e.getKey());
+                }
+            }
+            if (expired != null) {
+                for (int connId : expired) pendingJoinDeadline.remove(connId);
+            }
+        }
+        if (expired != null) {
+            for (int connId : expired) {
+                System.out.println("UYARI: connID=" + connId + " join-timeout, bağlantı kapatılıyor");
+                Connection conn = findConnection(connId);
+                if (conn != null) conn.close();
+            }
+        }
+    }
+
+    private Connection findConnection(int connId) {
+        for (Connection c : server.getConnections()) {
+            if (c.getID() == connId) return c;
+        }
+        return null;
     }
 
     private void tick(float dt) {
@@ -223,7 +278,7 @@ public class GameServer {
 
         ServerPlayerState p0 = snapshot[0];
         ServerPlayerState p1 = snapshot[1];
-        if (p0 != null && p1 != null) { 
+        if (p0 != null && p1 != null) {
             List<float[]> aliveTargets = new ArrayList<>();
             if (!p0.dead) aliveTargets.add(new float[]{p0.x, p0.y});
             if (!p1.dead) aliveTargets.add(new float[]{p1.x, p1.y});
@@ -298,7 +353,7 @@ public class GameServer {
         if (in.right) dirX += 1f;
 
         float gx = clamp(in.gamepadMoveX, -1f, 1f);
-        float gy = clamp(in.gamepadMoveY, -1f, 1f); 
+        float gy = clamp(in.gamepadMoveY, -1f, 1f);
         if (Math.abs(gx) > 0.2f) dirX = gx;
         if (Math.abs(gy) > 0.2f) dirY = -gy;
 
@@ -333,17 +388,23 @@ public class GameServer {
     }
 
     private void processCooldowns(ServerPlayerState p) {
-        if (p.shootCooldown.isFinished(currentTick))   p.shootCooldown.stop();
-        if (p.hitCooldown.isFinished(currentTick))     p.hitCooldown.stop();
-        if (p.bayonetCooldown.isFinished(currentTick)) p.bayonetCooldown.stop();
+        if (p.shootCooldown.isFinished(currentTick))       p.shootCooldown.stop();
+        if (p.hitCooldown.isFinished(currentTick))         p.hitCooldown.stop();
+        if (p.bayonetCooldown.isFinished(currentTick))     p.bayonetCooldown.stop();
     }
 
     // -----------------------------------------------------------
     // Bullet
     // -----------------------------------------------------------
     private void spawnBullets(ServerPlayerState p, float angle, WeaponStats w) {
+        // FIX: bullets listesinin sınırsız büyümesini önlemek için üst sınır.
+        // (Ateş hızı bypass'ı fixlense de savunma derinliği için tutulmalı.)
+        if (bullets.size() >= MAX_BULLETS) return;
+
         double rad = Math.toRadians(angle);
         for (int i = 0; i < w.bulletCount; i++) {
+            if (bullets.size() >= MAX_BULLETS) break;
+
             float spread = w.bulletSpread > 0
                     ? (float)((Math.random() * 2 - 1) * w.bulletSpread)
                     : 0f;
@@ -484,12 +545,12 @@ public class GameServer {
     // -----------------------------------------------------------
     // Broadcast
     // -----------------------------------------------------------
-    private void broadcastGameState() {
+    private void broadcastGameState(ServerPlayerState[] snapshot) {
         GameState state = new GameState();
         state.tick  = currentTick;
         state.score = score;
 
-        for (ServerPlayerState p : players) {
+        for (ServerPlayerState p : snapshot) {
             if (p == null) continue;
             PlayerSnapshot ps = new PlayerSnapshot();
             ps.playerId   = p.playerId;
@@ -552,9 +613,9 @@ public class GameServer {
         boolean firedThisTick = false;
         byte firedBulletType = -1;
         boolean damagedThisTick = false;
-        ServerTickTimer shootCooldown   = new ServerTickTimer(SHOOT_COOLDOWN_DEFAULT_TICKS);
-        ServerTickTimer hitCooldown     = new ServerTickTimer(HIT_COOLDOWN_TICKS);
-        ServerTickTimer bayonetCooldown = new ServerTickTimer(BAYONET_COOLDOWN_TICKS);
+        ServerTickTimer shootCooldown        = new ServerTickTimer(SHOOT_COOLDOWN_DEFAULT_TICKS);
+        ServerTickTimer hitCooldown          = new ServerTickTimer(HIT_COOLDOWN_TICKS);
+        ServerTickTimer bayonetCooldown      = new ServerTickTimer(BAYONET_COOLDOWN_TICKS);
         PlayerInput lastInput = null;
 
         ServerPlayerState(int pid, int cid) { this.playerId = pid; this.connectionId = cid; }
