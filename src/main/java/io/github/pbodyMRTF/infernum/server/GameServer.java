@@ -274,17 +274,27 @@ public class GameServer {
         if (p.lastInput == null) return;
         PlayerInput in = p.lastInput;
 
-        float mx = 0, my = 0;
-        if (in.up)    my += PLAYER_SPEED * dt;
-        if (in.down)  my -= PLAYER_SPEED * dt;
-        if (in.left)  mx -= PLAYER_SPEED * dt;
-        if (in.right) mx += PLAYER_SPEED * dt;
-
+        // FIX: klavye ve gamepad girdileri artık toplanmıyor (biri diğerini
+        // ezer, ikisi birden eklenmez) ve çapraz hareket normalize ediliyor.
+        // Önceki haliyle up+right basmak veya klavye+gamepad'i aynı anda
+        // göndermek, oyuncuya PLAYER_SPEED'in üzerinde (√2x veya 2x) bir hız
+        // kazandırıyordu (speed-hack).
+        float dirX = 0f, dirY = 0f;
+        if (in.up)    dirY += 1f;
+        if (in.down)  dirY -= 1f;
+        if (in.left)  dirX -= 1f;
+        if (in.right) dirX += 1f;
 
         float gx = clamp(in.gamepadMoveX, -1f, 1f);
-        float gy = clamp(in.gamepadMoveY, -1f, 1f);
-        if (Math.abs(gx) > 0.2f) mx += gx * PLAYER_SPEED * dt;
-        if (Math.abs(gy) > 0.2f) my -= gy * PLAYER_SPEED * dt;
+        float gy = clamp(in.gamepadMoveY, -1f, 1f); 
+        if (Math.abs(gx) > 0.2f) dirX = gx;
+        if (Math.abs(gy) > 0.2f) dirY = -gy;
+
+        float len = (float) Math.sqrt(dirX * dirX + dirY * dirY);
+        if (len > 1f) { dirX /= len; dirY /= len; }
+
+        float mx = dirX * PLAYER_SPEED * dt;
+        float my = dirY * PLAYER_SPEED * dt;
 
         float nextX = p.x + mx;
         float nextY = p.y + my;
