@@ -25,6 +25,16 @@ public class GameServer {
 
     private static final int MAX_PLAYER_NAME_LEN = 32;
 
+    // FIX: bağlantı kurulduktan sonra geçerli bir JoinMessage gelmezse
+    // bağlantıyı kapatmak için join timeout (ms). Bu olmadan bir istemci
+    // hiçbir şey göndermeden slotu sonsuza kadar işgal edebiliyordu.
+    private static final long JOIN_TIMEOUT_MS = 5000;
+
+    // FIX: bullets / entities listelerinin sınırsız büyümesini (bellek/CPU
+    // tükenmesi, DoS) engellemek için sert üst sınırlar.
+    private static final int MAX_BULLETS  = 500;
+    private static final int MAX_ENTITIES = 200;
+
     private Server server;
     private CollisionGrid collisionGrid;
     private float mapWidth, mapHeight;
