@@ -194,6 +194,11 @@ public class GameServer {
     private void tick(float dt) {
         currentTick++;
 
+        // FIX: senkronize olmayan players[] erişimini önlemek için anlık
+        // kopya al (connected/disconnected başka thread'den senkronize
+        // biçimde değiştiriyordu, tick thread'i kilitsiz okuyordu).
+        ServerPlayerState[] snapshot;
+        synchronized (players) { snapshot = players.clone(); }
 
         PlayerInput in;
         while ((in = pendingInputs.poll()) != null) handleInput(in);
@@ -201,17 +206,24 @@ public class GameServer {
         entityManager.cleanup();
         bullets.removeIf(b -> b.dead);
 
-        spawnManager.tick(currentTick, score);
+        // FIX: her iki oyuncu da ölmüşken (veya bağlı değilken) spawn
+        // etmeye devam etmek, entity listesinin sınırsız büyümesine ve
+        // gereksiz CPU/bellek tüketimine yol açıyordu.
+        boolean anyoneAlive = (snapshot[0] != null && !snapshot[0].dead)
+                || (snapshot[1] != null && !snapshot[1].dead);
+        if (anyoneAlive) {
+            spawnManager.tick(currentTick, score);
+        }
 
-        for (ServerPlayerState p : players) {
+        for (ServerPlayerState p : snapshot) {
             if (p == null || p.dead) continue;
             applyMovement(p, dt);
             processCooldowns(p);
         }
 
-        ServerPlayerState p0 = players[0];
-        ServerPlayerState p1 = players[1];
-        if (p0 != null && p1 != null) {
+        ServerPlayerState p0 = snapshot[0];
+        ServerPlayerState p1 = snapshot[1];
+        if (p0 != null && p1 != null) { 
             List<float[]> aliveTargets = new ArrayList<>();
             if (!p0.dead) aliveTargets.add(new float[]{p0.x, p0.y});
             if (!p1.dead) aliveTargets.add(new float[]{p1.x, p1.y});
@@ -223,7 +235,7 @@ public class GameServer {
         handlePlayerEnemyCollision();
 
         // NOT: cleanup burada YOK artık — bir sonraki tick'in başında yapılacak
-        broadcastGameState();
+        broadcastGameState(snapshot);
     }
 
     // -----------------------------------------------------------
