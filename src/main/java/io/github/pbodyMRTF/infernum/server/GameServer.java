@@ -5,7 +5,9 @@ import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Server;
 import io.github.pbodyMRTF.infernum.shared.*;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.*;
 
 public class GameServer {
@@ -39,7 +41,15 @@ public class GameServer {
     private CollisionGrid collisionGrid;
     private float mapWidth, mapHeight;
 
-    private final ServerPlayerState[] players = new ServerPlayerState[2];
+    // DEĞİŞTİ: artık sabit boyutlu değil — `maxp` komutuyla ayarlanabiliyor.
+    // Dizinin kendisi referans olarak değişebildiği (maxp ile yeniden
+    // oluşturulduğu) için ARTIK bu diziyi kilit (monitor) olarak KULLANMIYORUZ;
+    // onun yerine sabit/ayrı bir kilit nesnesi (playersLock) kullanıyoruz.
+    private ServerPlayerState[] players = new ServerPlayerState[2];
+    private final Object playersLock = new Object();
+    private volatile int maxPlayers = 2;
+    private static final int MIN_MAX_PLAYERS = 1;
+    private static final int MAX_MAX_PLAYERS = 8;
     private volatile int connectedCount = 0;
 
     // FIX: bağlantı kurulmuş ama henüz geçerli JoinMessage doğrulanmamış
@@ -57,6 +67,14 @@ public class GameServer {
 
     private int  currentTick = 0;
     private long lastTime;
+
+    // ---- YENİ: konsol komutlarıyla yönetilen oyun durumu ----------------
+    // Ağ sunucusu (Server) program açılışında hep ayakta ve bağlantı kabul
+    // ediyor; ama simülasyon (tick) SADECE konsoldan `start` yazılınca
+    // çalışmaya başlıyor. Artık 2. oyuncunun bağlanması tek başına oyunu
+    // başlatmıyor.
+    private final Object gameLock = new Object();
+    private volatile boolean gameStarted = false;
 
     public static void main(String[] args) throws IOException {
         new GameServer().start();
@@ -77,14 +95,14 @@ public class GameServer {
                 // FIX: Slot artık burada ASLA verilmiyor. Bağlantı sadece
                 // "join bekliyor" olarak işaretlenir ve bir deadline konur.
                 // Böylece hiçbir şey göndermeyen bir bağlantı slot işgal edemez.
-                synchronized (players) {
+                synchronized (playersLock) {
                     pendingJoinDeadline.put(c.getID(), System.currentTimeMillis() + JOIN_TIMEOUT_MS);
                 }
             }
 
             @Override
             public void disconnected(Connection c) {
-                synchronized (players) {
+                synchronized (playersLock) {
                     pendingJoinDeadline.remove(c.getID());
                     for (int i = 0; i < players.length; i++) {
                         ServerPlayerState p = players[i];
@@ -110,7 +128,7 @@ public class GameServer {
 
                     // FIX: Slot ataması artık SADECE geçerli bir JoinMessage
                     // doğrulandıktan sonra yapılıyor.
-                    synchronized (players) {
+                    synchronized (playersLock) {
                         // Zaten bu bağlantı için bir oyuncu atanmışsa (duplicate
                         // JoinMessage) tekrar slot verme.
                         for (ServerPlayerState p : players) {
@@ -129,16 +147,26 @@ public class GameServer {
                         connectedCount++;
                         System.out.println("Player " + pid + " Connected. connID=" + c.getID());
 
+                        // NOT: gameReady artık sadece "lobi doldu" değil,
+                        // "lobi doldu VE admin start/restart yazdı" anlamına
+                        // gelir. Bu oyuncu bağlandığında oyun zaten
+                        // çalışıyorsa (ör. maç ortasına geç katılım) direkt
+                        // true gönderiyoruz; değilse false — admin 'start'
+                        // yazdığında broadcastReadyToAll() ile herkese
+                        // (bu oyuncu dahil) ayrı ayrı doğru assignedPlayerId
+                        // ile tekrar gönderilecek.
                         JoinAckMessage ack = new JoinAckMessage();
                         ack.assignedPlayerId = pid;
-                        ack.gameReady        = (connectedCount == 2);
+                        ack.gameReady        = gameStarted;
                         server.sendToTCP(c.getID(), ack);
 
-                        if (connectedCount == 2) {
-                            JoinAckMessage ack0 = new JoinAckMessage();
-                            ack0.assignedPlayerId = 0;
-                            ack0.gameReady        = true;
-                            server.sendToTCP(players[0].connectionId, ack0);
+                        // FIX (maxp desteği): sabit "2" yerine ayarlanabilir
+                        // maxPlayers kullanılıyor. Lobi tam dolduğunda,
+                        // sadece son katılana değil, o an bağlı olan HERKESE
+                        // güncel hazır-durumunu (oyun zaten başlamışsa true)
+                        // gönderiyoruz.
+                        if (connectedCount == maxPlayers) {
+                            broadcastReadyToAll(gameStarted);
                         }
                     }
                     return;
@@ -166,7 +194,7 @@ public class GameServer {
             }
 
             private ServerPlayerState getPlayerByConnection(int connId) {
-                synchronized (players) {
+                synchronized (playersLock) {
                     for (ServerPlayerState p : players) if (p != null && p.connectionId == connId) return p;
                 }
                 return null;
@@ -183,7 +211,212 @@ public class GameServer {
         );
 
         lastTime = System.nanoTime();
+
+        // YENİ: terminal komut dinleyicisini başlat.
+        startConsoleListener();
+        printHelp();
+        System.out.println("Oyun 'start' komutu verilene kadar BAŞLAMAYACAK (2 oyuncu bağlansa bile).");
+
         gameLoop();
+    }
+
+    // -----------------------------------------------------------
+    // Konsol komutları
+    // -----------------------------------------------------------
+    private void startConsoleListener() {
+        Thread consoleThread = new Thread(() -> {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            String line;
+            try {
+                while ((line = reader.readLine()) != null) {
+                    handleCommand(line.trim());
+                }
+            } catch (IOException e) {
+                System.err.println("Konsol okuma hatası:");
+                e.printStackTrace();
+            }
+        }, "console-listener");
+        // FIX: daemon thread — JVM konsol thread'i yüzünden kapanmayı beklemesin.
+        consoleThread.setDaemon(true);
+        consoleThread.start();
+    }
+
+    private void handleCommand(String raw) {
+        if (raw.isEmpty()) return;
+        String[] parts = raw.trim().split("\\s+");
+        String cmd = parts[0].toLowerCase(Locale.ROOT);
+        switch (cmd) {
+            case "start":
+                cmdStart();
+                break;
+            case "stop":
+                cmdStop();
+                break;
+            case "restart":
+                cmdRestart();
+                break;
+            case "status":
+                cmdStatus();
+                break;
+            case "maxp":
+                cmdMaxPlayers(parts);
+                break;
+            case "help":
+                printHelp();
+                break;
+            default:
+                System.out.println("Bilinmeyen komut: '" + raw + "'. Komutlar için 'help' yazın.");
+        }
+    }
+
+    private void printHelp() {
+        System.out.println("--------------------------------------------------");
+        System.out.println(" Komutlar:");
+        System.out.println("   start     -> oyunu (simülasyonu) başlatır");
+        System.out.println("   stop      -> oyunu durdurur (bağlantılar kopmaz)");
+        System.out.println("   restart   -> durumu sıfırlayıp oyunu yeniden başlatır");
+        System.out.println("   status    -> bağlı oyuncu sayısı ve oyun durumunu gösterir");
+        System.out.println("   maxp <n>  -> maksimum oyuncu sayısını ayarlar (" + MIN_MAX_PLAYERS
+                + "-" + MAX_MAX_PLAYERS + "), sadece kimse bağlı değilken ve oyun durmuşken");
+        System.out.println("   help      -> bu mesajı gösterir");
+        System.out.println("--------------------------------------------------");
+    }
+
+    // FIX: önceden players dizisi sabit boyut 2 idi; 3. bir bağlantı
+    // JoinMessage gönderdiğinde pid bulunamıyor (pid == -1) ve bağlantı
+    // kapatılıyordu — bu da o istemcide beklenmedik bir "çökme/bağlanamama"
+    // gibi görünüyordu. Artık maxPlayers admin tarafından ayarlanabiliyor.
+    private void cmdMaxPlayers(String[] parts) {
+        if (parts.length < 2) {
+            System.out.println("Kullanım: maxp <sayı>  (mevcut: " + maxPlayers + ")");
+            return;
+        }
+        int n;
+        try {
+            n = Integer.parseInt(parts[1]);
+        } catch (NumberFormatException e) {
+            System.out.println("Geçersiz sayı: '" + parts[1] + "'");
+            return;
+        }
+        if (n < MIN_MAX_PLAYERS || n > MAX_MAX_PLAYERS) {
+            System.out.println("maxp " + MIN_MAX_PLAYERS + " ile " + MAX_MAX_PLAYERS + " arasında olmalı.");
+            return;
+        }
+        synchronized (playersLock) {
+            if (connectedCount > 0 || gameStarted) {
+                System.out.println("maxp sadece kimse bağlı değilken ve oyun durmuşken değiştirilebilir. "
+                        + "(Bağlı: " + connectedCount + ", oyun " + (gameStarted ? "çalışıyor" : "durdu") + ")");
+                return;
+            }
+            players    = new ServerPlayerState[n];
+            maxPlayers = n;
+        }
+        System.out.println("Maksimum oyuncu sayısı " + n + " olarak ayarlandı.");
+    }
+
+    private void cmdStart() {
+        synchronized (gameLock) {
+            if (gameStarted) {
+                System.out.println("Oyun zaten çalışıyor.");
+                return;
+            }
+            resetGameState();
+            gameStarted = true;
+            System.out.println("Oyun başlatıldı. (Bağlı oyuncu: " + connectedCount + "/" + maxPlayers + ")");
+            if (connectedCount < maxPlayers) {
+                System.out.println("UYARI: lobi henüz dolu değil, yine de başlatıldı.");
+            }
+        }
+        broadcastReadyToAll(true);
+    }
+
+    private void cmdStop() {
+        synchronized (gameLock) {
+            if (!gameStarted) {
+                System.out.println("Oyun zaten durdurulmuş durumda.");
+                return;
+            }
+            gameStarted = false;
+            System.out.println("Oyun durduruldu. Bağlantılar açık kalıyor.");
+        }
+        // NOT: NetworkClient tarafında gameReady=false bir "lobiye dön"
+        // davranışı tetiklemiyor (sadece true iken onGameReady çağrılıyor),
+        // yine de ileriye dönük uyumluluk için gönderiyoruz — client
+        // tarafında istenirse bu false durumunu da işleyecek bir case
+        // eklenebilir.
+        broadcastReadyToAll(false);
+    }
+
+    private void cmdRestart() {
+        synchronized (gameLock) {
+            resetGameState();
+            gameStarted = true;
+            System.out.println("Oyun yeniden başlatıldı.");
+        }
+        broadcastReadyToAll(true);
+    }
+
+    private void cmdStatus() {
+        System.out.println("Bağlı oyuncu: " + connectedCount + "/" + maxPlayers + " | Oyun durumu: "
+                + (gameStarted ? "ÇALIŞIYOR" : "DURDU"));
+    }
+
+    // FIX: daha önce burada yeni ve client tarafında KAYITLI OLMAYAN bir
+    // mesaj sınıfı (GameControlMessage) tüm bağlı istemcilere broadcast
+    // ediliyordu. Kryo (setRegistrationRequired=true) bilinmeyen class ID
+    // ile karşılaşınca deserialize hatası fırlatıyor ve KryoNet bağlantıyı
+    // KAPATIYORDU — "start" yazınca iki oyuncunun da anında disconnect
+    // yemesinin sebebi buydu. Çözüm: yeni bir sınıfa hiç gerek yok; zaten
+    // her iki tarafta da kayıtlı ve client'ın (NetworkClient) doğru şekilde
+    // işlediği JoinAckMessage'ı, her oyuncuya KENDİ doğru assignedPlayerId'si
+    // ile tekrar göndermek yeterli.
+    private void broadcastReadyToAll(boolean ready) {
+        if (server == null) return;
+        synchronized (playersLock) {
+            for (ServerPlayerState p : players) {
+                if (p == null) continue;
+                JoinAckMessage ack = new JoinAckMessage();
+                ack.assignedPlayerId = p.playerId;
+                ack.gameReady        = ready;
+                server.sendToTCP(p.connectionId, ack);
+            }
+        }
+    }
+
+    // FIX: start/restart komutuyla sunucu tarafı durumu her zaman temiz bir
+    // noktadan başlatılır (skor, tick sayacı, mermiler, düşmanlar, oyuncu
+    // can/pozisyonları). Bağlı Connection'lar ve players[] slot atamaları
+    // KORUNUR — sadece oyun içi durum sıfırlanır.
+    private void resetGameState() {
+        currentTick = 0;
+        score = 0;
+        nextBulletId = 0;
+        bullets.clear();
+        pendingInputs.clear();
+        entityManager = new ServerEntityManager();
+        spawnManager = new ServerSpawnManager(
+                entityManager, mapWidth, mapHeight,
+                new Random(), 1.2f, 0.5f
+        );
+
+        synchronized (playersLock) {
+            for (ServerPlayerState p : players) {
+                if (p == null) continue;
+                p.x = 2036; p.y = 1951;
+                p.hp = 3;
+                p.dead = false;
+                p.weaponSlot = 1;
+                p.prevFireHeld = false;
+                p.firedThisTick = false;
+                p.firedBulletType = -1;
+                p.damagedThisTick = false;
+                p.bayonetUsedThisTick = false;
+                p.shootCooldown.stop();
+                p.hitCooldown.stop();
+                p.bayonetCooldown.stop();
+                p.lastInput = null;
+            }
+        }
     }
 
     private void gameLoop() {
@@ -198,12 +431,16 @@ public class GameServer {
             // içinde bir kaydı yok, sadece kapatılmaları yeterli.
             checkJoinTimeouts();
 
-            if (connectedCount == 2) {
-                try {
-                    tick(dt);
-                } catch (Exception ex) {
-                    System.err.println("Tick Error:");
-                    ex.printStackTrace();
+            // DEĞİŞTİ: artık sadece connectedCount==maxPlayers yetmiyor,
+            // admin'in konsoldan 'start' yazmış olması da gerekiyor.
+            if (gameStarted && connectedCount == maxPlayers) {
+                synchronized (gameLock) {
+                    try {
+                        tick(dt);
+                    } catch (Exception ex) {
+                        System.err.println("Tick Error:");
+                        ex.printStackTrace();
+                    }
                 }
             }
 
@@ -219,7 +456,7 @@ public class GameServer {
     private void checkJoinTimeouts() {
         long now = System.currentTimeMillis();
         List<Integer> expired = null;
-        synchronized (players) {
+        synchronized (playersLock) {
             for (Map.Entry<Integer, Long> e : pendingJoinDeadline.entrySet()) {
                 if (now >= e.getValue()) {
                     if (expired == null) expired = new ArrayList<>();
@@ -253,7 +490,7 @@ public class GameServer {
         // kopya al (connected/disconnected başka thread'den senkronize
         // biçimde değiştiriyordu, tick thread'i kilitsiz okuyordu).
         ServerPlayerState[] snapshot;
-        synchronized (players) { snapshot = players.clone(); }
+        synchronized (playersLock) { snapshot = players.clone(); }
 
         PlayerInput in;
         while ((in = pendingInputs.poll()) != null) handleInput(in);
@@ -261,11 +498,15 @@ public class GameServer {
         entityManager.cleanup();
         bullets.removeIf(b -> b.dead);
 
-        // FIX: her iki oyuncu da ölmüşken (veya bağlı değilken) spawn
+        // FIX: hiç kimse hayattaysa (veya kimse bağlı değilken) spawn
         // etmeye devam etmek, entity listesinin sınırsız büyümesine ve
         // gereksiz CPU/bellek tüketimine yol açıyordu.
-        boolean anyoneAlive = (snapshot[0] != null && !snapshot[0].dead)
-                || (snapshot[1] != null && !snapshot[1].dead);
+        // DEĞİŞTİ (maxp desteği): artık sabit p0/p1 yerine dizideki TÜM
+        // oyuncular üzerinden genel kontrol yapılıyor.
+        boolean anyoneAlive = false;
+        for (ServerPlayerState p : snapshot) {
+            if (p != null && !p.dead) { anyoneAlive = true; break; }
+        }
         if (anyoneAlive) {
             spawnManager.tick(currentTick, score);
         }
@@ -276,12 +517,15 @@ public class GameServer {
             processCooldowns(p);
         }
 
-        ServerPlayerState p0 = snapshot[0];
-        ServerPlayerState p1 = snapshot[1];
-        if (p0 != null && p1 != null) {
-            List<float[]> aliveTargets = new ArrayList<>();
-            if (!p0.dead) aliveTargets.add(new float[]{p0.x, p0.y});
-            if (!p1.dead) aliveTargets.add(new float[]{p1.x, p1.y});
+        // DEĞİŞTİ (maxp desteği): önceden düşmanların hedef listesi sadece
+        // p0 VE p1'in ikisi de bağlıysa hesaplanıyordu (2 oyuncuya kilitli).
+        // Artık kaç oyuncu bağlıysa (1, 2, 3...) hayatta olan HERKES hedef
+        // listesine giriyor.
+        List<float[]> aliveTargets = new ArrayList<>();
+        for (ServerPlayerState p : snapshot) {
+            if (p != null && !p.dead) aliveTargets.add(new float[]{p.x, p.y});
+        }
+        if (!aliveTargets.isEmpty()) {
             entityManager.updateAll(dt, aliveTargets);
         }
 
