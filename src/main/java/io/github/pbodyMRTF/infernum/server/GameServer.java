@@ -25,8 +25,6 @@ public class GameServer {
     private static final int MIN_WEAPON_SLOT = WeaponStats.SLOT_PISTOL;
     private static final int MAX_WEAPON_SLOT = WeaponStats.SLOT_SMG;
 
-    private static final int MAX_PLAYER_NAME_LEN = 32;
-
     // FIX: bağlantı kurulduktan sonra geçerli bir JoinMessage gelmezse
     // bağlantıyı kapatmak için join timeout (ms). Bu olmadan bir istemci
     // hiçbir şey göndermeden slotu sonsuza kadar işgal edebiliyordu.
@@ -36,6 +34,32 @@ public class GameServer {
     // tükenmesi, DoS) engellemek için sert üst sınırlar.
     private static final int MAX_BULLETS  = 500;
     private static final int MAX_ENTITIES = 200;
+
+    // FIX (DoS #1 - input flood): bir client çok hızlı/çok sayıda PlayerInput
+    // gönderirse, önceden pendingInputs sınırsız büyüyüp tick() içinde
+    // TAMAMEN boşaltılıyordu — bu da o tick'i (dolayısıyla TÜM oyuncuları)
+    // orantısız şekilde yavaşlatabiliyordu. Artık oyuncu başına sert bir
+    // kuyruk üst sınırı var; sınır aşılınca fazla input sessizce düşürülür
+    // (bir sonraki input zaten güncel durumu taşıyacağı için oynanışı
+    // bozmaz, sadece burst'ü söndürür).
+    private static final int MAX_PENDING_INPUTS_PER_PLAYER = 32;
+
+    // FIX (DoS #2 - connection flood): JoinMessage hiç göndermeden çok
+    // sayıda soket açıp bekletmek belleği/soket tablosunu tüketebilirdi.
+    // Artık hem toplam "join bekleyen" bağlantı sayısına hem de aynı IP'den
+    // gelen eşzamanlı bağlantı sayısına sert üst sınır konuyor.
+    private static final int MAX_PENDING_CONNECTIONS = 32;
+    private static final int MAX_CONNECTIONS_PER_IP  = 4;
+
+    // FIX (#5 - kimliksiz erişim): sunucu isteğe bağlı bir parola ile
+    // korunabilir ("password <parola>" konsol komutu). null ise korumasız
+    // (eski davranış). Client'ların hiçbir kod/registration değişikliği
+    // GEREKMEZ: parola, mevcut JoinMessage.playerName alanına
+    // "parola:isim" formatında gömülerek taşınır.
+    private volatile String joinPassword = null;
+    private static final String PASSWORD_SEPARATOR = ":";
+
+    private static final int MAX_PLAYER_NAME_LEN = 32;
 
     private Server server;
     private CollisionGrid collisionGrid;
@@ -55,6 +79,11 @@ public class GameServer {
     // FIX: bağlantı kurulmuş ama henüz geçerli JoinMessage doğrulanmamış
     // bağlantıların join-deadline'ını takip eder. Slot burada AYRILMAZ.
     private final Map<Integer, Long> pendingJoinDeadline = new HashMap<>();
+
+    // FIX (DoS #2): aynı IP'den eşzamanlı kaç bağlantı olduğunu takip eder.
+    // playersLock altında korunur, connected()/disconnected() içinde
+    // güncellenir.
+    private final Map<String, Integer> connectionsPerIp = new HashMap<>();
 
     private ServerEntityManager entityManager = new ServerEntityManager();
     private ServerSpawnManager spawnManager;
@@ -92,18 +121,45 @@ public class GameServer {
         server.addListener(new Listener() {
             @Override
             public void connected(Connection c) {
-                // FIX: Slot artık burada ASLA verilmiyor. Bağlantı sadece
-                // "join bekliyor" olarak işaretlenir ve bir deadline konur.
-                // Böylece hiçbir şey göndermeyen bir bağlantı slot işgal edemez.
+                // FIX (DoS #2): bağlantı seli koruması. Önce toplam
+                // "join bekleyen" (henüz slot almamış) bağlantı sayısını,
+                // sonra aynı IP'den gelen eşzamanlı bağlantı sayısını
+                // kontrol ediyoruz. Limit aşılırsa bağlantı hiçbir kaynak
+                // ayrılmadan hemen kapatılır.
+                String ip = remoteIp(c);
                 synchronized (playersLock) {
+                    int fromSameIp = connectionsPerIp.getOrDefault(ip, 0);
+                    if (pendingJoinDeadline.size() >= MAX_PENDING_CONNECTIONS
+                            || fromSameIp >= MAX_CONNECTIONS_PER_IP) {
+                        System.out.println("UYARI: bağlantı reddedildi (limit aşıldı), IP=" + ip
+                                + " connID=" + c.getID());
+                        c.close();
+                        return;
+                    }
+                    connectionsPerIp.merge(ip, 1, Integer::sum);
+                    // FIX: Slot artık burada ASLA verilmiyor. Bağlantı sadece
+                    // "join bekliyor" olarak işaretlenir ve bir deadline konur.
+                    // Böylece hiçbir şey göndermeyen bir bağlantı slot işgal edemez.
                     pendingJoinDeadline.put(c.getID(), System.currentTimeMillis() + JOIN_TIMEOUT_MS);
                 }
             }
 
             @Override
             public void disconnected(Connection c) {
+                String ip = remoteIp(c);
                 synchronized (playersLock) {
                     pendingJoinDeadline.remove(c.getID());
+
+                    // FIX (DoS #2): IP başına sayaç düşürülüyor, yoksa
+                    // giden bağlantılar sonsuza dek limitte sayılmaya
+                    // devam eder ve o IP kalıcı olarak engellenmiş gibi
+                    // davranır.
+                    Integer count = connectionsPerIp.get(ip);
+                    if (count != null) {
+                        if (count <= 1) connectionsPerIp.remove(ip);
+                        else connectionsPerIp.put(ip, count - 1);
+                    }
+
                     for (int i = 0; i < players.length; i++) {
                         ServerPlayerState p = players[i];
                         if (p != null && p.connectionId == c.getID()) {
@@ -119,8 +175,33 @@ public class GameServer {
             public void received(Connection c, Object obj) {
                 if (obj instanceof JoinMessage) {
                     JoinMessage jm = (JoinMessage) obj;
-                    if (jm.playerName == null || jm.playerName.isEmpty()
-                            || jm.playerName.length() > MAX_PLAYER_NAME_LEN) {
+
+                    // FIX (#5 - kimliksiz erişim): parola koruması açıksa
+                    // (bkz. 'password' konsol komutu), playerName alanı
+                    // "parola:isim" formatında gelmek zorunda. Yeni bir
+                    // mesaj sınıfı/registration GEREKTİRMEZ, mevcut
+                    // JoinMessage.playerName alanı yeniden kullanılıyor.
+                    String rawName = jm.playerName;
+                    String effectiveName = rawName;
+                    String requiredPassword = joinPassword; // volatile'ı bir kez oku (tutarlılık)
+                    if (requiredPassword != null) {
+                        int sep = rawName == null ? -1 : rawName.indexOf(PASSWORD_SEPARATOR);
+                        if (sep < 0) {
+                            System.out.println("UYARI: parola gerekli ama gönderilmedi, connID=" + c.getID() + " -> bağlantı kapatılıyor");
+                            c.close();
+                            return;
+                        }
+                        String providedPassword = rawName.substring(0, sep);
+                        effectiveName = rawName.substring(sep + 1);
+                        if (!constantTimeEquals(providedPassword, requiredPassword)) {
+                            System.out.println("UYARI: yanlış parola, connID=" + c.getID() + " -> bağlantı kapatılıyor");
+                            c.close();
+                            return;
+                        }
+                    }
+
+                    if (effectiveName == null || effectiveName.isEmpty()
+                            || effectiveName.length() > MAX_PLAYER_NAME_LEN) {
                         System.out.println("UYARI: geçersiz JoinMessage, connID=" + c.getID() + " -> bağlantı kapatılıyor");
                         c.close();
                         return;
@@ -190,6 +271,14 @@ public class GameServer {
                 // gönderiliyordu (griefing / istemci tarafı NaN yayılımı riski).
                 if (!Float.isFinite(input.aimAngle)) input.aimAngle = 0f;
 
+                // FIX (DoS #1): oyuncu başına kuyruk üst sınırı. Sınır
+                // aşılırsa fazla input sessizce düşürülür — kuyruk hiçbir
+                // zaman MAX_PENDING_INPUTS_PER_PLAYER'ı aşamayacağı için
+                // tick() içindeki drain her zaman sınırlı iş yapar.
+                if (owner.queuedInputCount.get() >= MAX_PENDING_INPUTS_PER_PLAYER) {
+                    return;
+                }
+                owner.queuedInputCount.incrementAndGet();
                 pendingInputs.add(input);
             }
 
@@ -261,6 +350,9 @@ public class GameServer {
             case "maxp":
                 cmdMaxPlayers(parts);
                 break;
+            case "password":
+                cmdPassword(parts);
+                break;
             case "help":
                 printHelp();
                 break;
@@ -272,14 +364,43 @@ public class GameServer {
     private void printHelp() {
         System.out.println("--------------------------------------------------");
         System.out.println(" Komutlar:");
-        System.out.println("   start     -> oyunu (simülasyonu) başlatır");
-        System.out.println("   stop      -> oyunu durdurur (bağlantılar kopmaz)");
-        System.out.println("   restart   -> durumu sıfırlayıp oyunu yeniden başlatır");
-        System.out.println("   status    -> bağlı oyuncu sayısı ve oyun durumunu gösterir");
-        System.out.println("   maxp <n>  -> maksimum oyuncu sayısını ayarlar (" + MIN_MAX_PLAYERS
+        System.out.println("   start           -> oyunu (simülasyonu) başlatır");
+        System.out.println("   stop            -> oyunu durdurur (bağlantılar kopmaz)");
+        System.out.println("   restart         -> durumu sıfırlayıp oyunu yeniden başlatır");
+        System.out.println("   status          -> bağlı oyuncu sayısı ve oyun durumunu gösterir");
+        System.out.println("   maxp <n>        -> maksimum oyuncu sayısını ayarlar (" + MIN_MAX_PLAYERS
                 + "-" + MAX_MAX_PLAYERS + "), sadece kimse bağlı değilken ve oyun durmuşken");
-        System.out.println("   help      -> bu mesajı gösterir");
+        System.out.println("   password <p>    -> katılım parolası koyar (client 'parola:isim' göndermeli)");
+        System.out.println("   password off    -> parola korumasını kapatır");
+        System.out.println("   help            -> bu mesajı gösterir");
         System.out.println("--------------------------------------------------");
+    }
+
+    // FIX (#5 - kimliksiz erişim): en azından paylaşılan bir parola ile
+    // temel bir erişim kontrolü sağlar. NOT: bu bağlantı içeriğini
+    // ŞİFRELEMEZ (TCP hâlâ düz metin) — sadece kimliksiz/rastgele
+    // bağlanmaları engeller. Gerçek uçtan uca şifreleme (TLS) için
+    // kryonet'in soket katmanına SSL/TLS sarmalayıcı eklenmesi gerekir;
+    // bu, client tarafında da değişiklik gerektiren ayrı bir iştir.
+    private void cmdPassword(String[] parts) {
+        if (parts.length < 2) {
+            System.out.println("Kullanım: password <parola>  |  password off   (mevcut: "
+                    + (joinPassword == null ? "KAPALI" : "AÇIK") + ")");
+            return;
+        }
+        String arg = parts[1];
+        if (arg.equalsIgnoreCase("off")) {
+            joinPassword = null;
+            System.out.println("Parola koruması kapatıldı.");
+            return;
+        }
+        if (arg.contains(PASSWORD_SEPARATOR)) {
+            System.out.println("Parola ':' karakteri içeremez.");
+            return;
+        }
+        joinPassword = arg;
+        System.out.println("Parola koruması açıldı. İstemciler artık isim alanına "
+                + "'parola:isim' formatında göndermeli.");
     }
 
     // FIX: önceden players dizisi sabit boyut 2 idi; 3. bir bağlantı
@@ -415,6 +536,12 @@ public class GameServer {
                 p.hitCooldown.stop();
                 p.bayonetCooldown.stop();
                 p.lastInput = null;
+                // FIX (DoS #1 tutarlılığı): kuyruk fiziksel olarak
+                // boşaltıldığı için sayaç da sıfırlanmalı, aksi halde
+                // gerçekte boş olan kuyruk için sayaç sıfır olmayan bir
+                // değerde takılı kalıp bu oyuncunun gelecekteki inputlarını
+                // haksız yere düşürmeye devam edebilirdi.
+                p.queuedInputCount.set(0);
             }
         }
     }
@@ -483,6 +610,37 @@ public class GameServer {
         return null;
     }
 
+    // FIX (DoS #2): bağlantının IP'sini güvenli biçimde okur; herhangi bir
+    // sebeple alınamazsa (soket kapanmış vb.) tüm bu IP'siz bağlantıları
+    // aynı "unknown" kovasına toplayarak limitleme mantığını bozmaz.
+    // FIX (#5): parola karşılaştırması '=='/String.equals yerine sabit
+    // zamanlı yapılır; aksi halde erken çıkış yapan bir equals() ile
+    // saldırgan yanıt süresini ölçerek parolayı karakter karakter tahmin
+    // edebilirdi (timing attack).
+    private boolean constantTimeEquals(String a, String b) {
+        if (a == null || b == null) return false;
+        byte[] x = a.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] y = b.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        int diff = x.length ^ y.length;
+        int len = Math.max(x.length, y.length);
+        for (int i = 0; i < len; i++) {
+            byte bx = i < x.length ? x[i] : 0;
+            byte by = i < y.length ? y[i] : 0;
+            diff |= bx ^ by;
+        }
+        return diff == 0;
+    }
+
+    private String remoteIp(Connection c) {
+        try {
+            java.net.InetSocketAddress addr = c.getRemoteAddressTCP();
+            return addr != null && addr.getAddress() != null
+                    ? addr.getAddress().getHostAddress() : "unknown";
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
+
     private void tick(float dt) {
         currentTick++;
 
@@ -493,7 +651,14 @@ public class GameServer {
         synchronized (playersLock) { snapshot = players.clone(); }
 
         PlayerInput in;
-        while ((in = pendingInputs.poll()) != null) handleInput(in);
+        while ((in = pendingInputs.poll()) != null) {
+            // FIX (DoS #1): kuyruk sayacını düşür (bkz. received() içindeki
+            // artırım). Oyuncu bu arada disconnect olmuşsa owner null gelir,
+            // bu durumda düşürülecek bir şey yoktur, sorun değildir.
+            ServerPlayerState owner = getPlayer(in.playerId);
+            if (owner != null) owner.queuedInputCount.decrementAndGet();
+            handleInput(in);
+        }
 
         entityManager.cleanup();
         bullets.removeIf(b -> b.dead);
@@ -861,6 +1026,11 @@ public class GameServer {
         ServerTickTimer hitCooldown          = new ServerTickTimer(HIT_COOLDOWN_TICKS);
         ServerTickTimer bayonetCooldown      = new ServerTickTimer(BAYONET_COOLDOWN_TICKS);
         PlayerInput lastInput = null;
+        // FIX (DoS #1): bu oyuncuya ait, henüz tick() tarafından işlenmemiş
+        // input sayısı. received() içinde artırılır, tick()'te her poll'da
+        // azaltılır; MAX_PENDING_INPUTS_PER_PLAYER üst sınırını uygular.
+        final java.util.concurrent.atomic.AtomicInteger queuedInputCount
+                = new java.util.concurrent.atomic.AtomicInteger(0);
 
         ServerPlayerState(int pid, int cid) { this.playerId = pid; this.connectionId = cid; }
     }
