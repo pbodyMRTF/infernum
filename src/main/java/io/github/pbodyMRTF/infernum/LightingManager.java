@@ -26,7 +26,7 @@ public class LightingManager {
         lightWorld = new World(com.badlogic.gdx.math.Vector2.Zero, true);
         rayHandler = new RayHandler(lightWorld);
         rayHandler.setBlurNum(2);
-        rayHandler.setAmbientLight(0.25f, 0.10f, 0.2f, 1f);
+        rayHandler.setAmbientLight(0.30f, 0.15f, 0.25f, 1f);
 
         playerCone = new ConeLight(
                 rayHandler, RAY_COUNT,
