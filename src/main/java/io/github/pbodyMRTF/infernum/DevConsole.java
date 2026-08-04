@@ -82,6 +82,24 @@ public class DevConsole {
                     resetTabState();
                     return true;
                 }
+                // Ctrl+V: panodaki metni imleç konumuna (satır sonuna) yapıştır
+                if (keycode == Input.Keys.V && (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)
+                        || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT))) {
+                    pasteFromClipboard();
+                    return true;
+                }
+                // Ctrl+C: mevcut satırı panoya kopyala
+                if (keycode == Input.Keys.C && (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)
+                        || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT))) {
+                    copyToClipboard();
+                    return true;
+                }
+                // Ctrl+X: mevcut satırı panoya kopyala ve girdi satırını temizle
+                if (keycode == Input.Keys.X && (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)
+                        || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT))) {
+                    cutToClipboard();
+                    return true;
+                }
                 return false;
             }
 
@@ -199,6 +217,55 @@ public class DevConsole {
         tabMatches.clear();
         tabIndex = 0;
         tabBase = "";
+    }
+
+    /**
+     * Sistem panosundaki metni girdi satırının sonuna ekler.
+     * Satır sonu (\n, \r) ve yazdırılamayan karakterler yoksayılır,
+     * böylece çok satırlı bir yapıştırma tek bir komut satırına düşer.
+     */
+    private void pasteFromClipboard() {
+        try {
+            if (!Gdx.app.getClipboard().hasContents()) {
+                return;
+            }
+            String clip = Gdx.app.getClipboard().getContents();
+            if (clip == null || clip.isEmpty()) {
+                return;
+            }
+            for (int i = 0; i < clip.length(); i++) {
+                char c = clip.charAt(i);
+                if (c == '\r' || c == '\n') {
+                    continue;
+                }
+                if (c >= 32 && c < 127) {
+                    inputLine.append(c);
+                }
+            }
+            resetTabState();
+        } catch (Exception e) {
+            history.add("Clipboard paste failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Girdi satırının tamamını sistem panosuna kopyalar.
+     */
+    private void copyToClipboard() {
+        try {
+            Gdx.app.getClipboard().setContents(inputLine.toString());
+        } catch (Exception e) {
+            history.add("Clipboard copy failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Girdi satırının tamamını panoya kopyalar ve ardından temizler (kes).
+     */
+    private void cutToClipboard() {
+        copyToClipboard();
+        inputLine.setLength(0);
+        resetTabState();
     }
 
     private void executeCommand(String raw) {
@@ -421,7 +488,7 @@ public class DevConsole {
         fontBody.setColor(1, 1, 1, 1);
 
         fontSmall.setColor(0.6f, 0.6f, 0.6f, 0.6f);
-        fontSmall.draw(batch, "GRAVE: toggle console   ENTER: run command   TAB: autocomplete", 50, 20f);
+        fontSmall.draw(batch, "GRAVE: toggle console   ENTER: run command   TAB: autocomplete   CTRL+C/V/X: copy/paste/cut", 50, 20f);
         fontSmall.setColor(1, 1, 1, 1);
 
         batch.end();
