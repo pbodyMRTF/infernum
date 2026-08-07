@@ -119,6 +119,12 @@ public class OnlineGameScreen implements Screen {
 
     private Texture bulletTex, bulletSmgTex, bulletPistolTex;
 
+    // --- Oyuncu başı üstü can göstergesi ayarları ---
+    private static final float HEAD_HP_ICON_SIZE = 18f;   // her kalp ikonunun world-unit boyutu
+    private static final float HEAD_HP_GAP       = 2f;    // kalpler arası boşluk
+    private static final float HEAD_HP_Y_OFFSET  = 78f;   // oyuncu origin'inden (px,py) yukarı mesafe
+    private static final int   MAX_HP_ICONS      = 3;
+
     public OnlineGameScreen(Jgame game, String serverHost) {
         this.game       = game;
         this.serverHost = serverHost;
@@ -496,6 +502,9 @@ public class OnlineGameScreen implements Screen {
                 renderBayonetAnim(px, py, bayonetAnimTimers.get(ps.playerId));
             }
 
+            // --- Oyuncunun kafasının üstünde can (kalp) göstergesi ---
+            drawPlayerHeartsAboveHead(ps, px, py);
+
             lighting.updateConeLight(ps.playerId, px + 32, py + 32, angle);  // ← ps.aimAngle yerine angle
         }
 
@@ -526,6 +535,22 @@ public class OnlineGameScreen implements Screen {
         renderEnemyHealthBars();
         renderHUD();
     }
+
+    // --- Oyuncunun kafasının üstünde kalp ikonlarıyla can göstergesi ---
+    // Sol üstteki eski HP HUD'unun yerine geçer; her oyuncunun üstünde kendi 3 kalbi görünür,
+    // böylece 3-4 oyuncuyla oynarken herkes kendi ve takım arkadaşlarının canını anında görebilir.
+    private void drawPlayerHeartsAboveHead(PlayerSnapshot ps, float px, float py) {
+        float totalWidth = MAX_HP_ICONS * HEAD_HP_ICON_SIZE + (MAX_HP_ICONS - 1) * HEAD_HP_GAP;
+        float startX = (px + 32) - totalWidth / 2f;
+        float iconY  = py + HEAD_HP_Y_OFFSET;
+
+        for (int i = 0; i < MAX_HP_ICONS; i++) {
+            Texture h = i < ps.hp ? heartTex : heartEmptyTex;
+            float iconX = startX + i * (HEAD_HP_ICON_SIZE + HEAD_HP_GAP);
+            batch.draw(h, iconX, iconY, HEAD_HP_ICON_SIZE, HEAD_HP_ICON_SIZE);
+        }
+    }
+
     private void renderBayonetAnim(float px, float py, float animTime) {
         float bladeW = 16f, bladeH = 32f, orbit = 60f;
         float rotation = (animTime / 0.3f) * 360f * 1.5f;
@@ -600,15 +625,8 @@ public class OnlineGameScreen implements Screen {
         // Score
         font.draw(batch, "Score: " + currentState.score, 20, UI_HEIGHT - 20);
 
-        // Her oyuncunun HP'si
-        for (PlayerSnapshot p : currentState.players) {
-            float yOffset = p.playerId == 0 ? UI_HEIGHT - 60 : UI_HEIGHT - 120;
-            font.draw(batch, "P" + (p.playerId + 1) + ": ", 20, yOffset);
-            for (int i = 0; i < 3; i++) {
-                Texture h = i < p.hp ? heartTex : heartEmptyTex;
-                batch.draw(h, 80 + i * 40, yOffset - 32, 32, 32);
-            }
-        }
+        // Not: Oyuncu canları artık burada değil, her oyuncunun kendi kafasının
+        // üstünde (renderGame() -> drawPlayerHeartsAboveHead) gösteriliyor.
 
         // Hotbar (benim silahım) — orijinaliyle birebir aynı
         PlayerSnapshot me = getMySnapshot();
