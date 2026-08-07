@@ -2,6 +2,7 @@ package io.github.pbodyMRTF.infernum;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
@@ -13,7 +14,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
-public class OnlineLobbyScreen implements Screen {
+public class OnlineLobbyScreen implements Screen, InputProcessor {
 
     final Jgame game;
     SpriteBatch batch;
@@ -118,6 +119,11 @@ public class OnlineLobbyScreen implements Screen {
         shapeRenderer.end();
     }
 
+    /**
+     * Yalnızca metin girişi OLMAYAN kontrolleri işler (ESC, ENTER, Ctrl+V, Ctrl+C).
+     * Gerçek karakter girişi artık keyTyped(char) üzerinden, klavye düzeninden
+     * bağımsız şekilde yapılıyor (bkz. aşağıdaki InputProcessor metotları).
+     */
     private void handleInput() {
         if (connecting) return;
 
@@ -125,10 +131,6 @@ public class OnlineLobbyScreen implements Screen {
             Select.play();
             game.setScreen(new MainMenuScreen(game));
             return;
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.BACKSPACE) && ipInput.length() > 0) {
-            ipInput.deleteCharAt(ipInput.length() - 1);
         }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
@@ -145,7 +147,7 @@ public class OnlineLobbyScreen implements Screen {
             if (clipboard != null) {
                 for (int i = 0; i < clipboard.length(); i++) {
                     char c = clipboard.charAt(i);
-                    if (c >= 32 && c < 127) {
+                    if (isAllowedChar(c)) {
                         ipInput.append(c);
                     }
                 }
@@ -156,23 +158,11 @@ public class OnlineLobbyScreen implements Screen {
         // Ctrl+C: mevcut girdiyi panoya kopyala
         if (ctrlDown && Gdx.input.isKeyJustPressed(Input.Keys.C)) {
             Gdx.app.getClipboard().setContents(ipInput.toString());
-            return;
         }
+    }
 
-        // Basit karakter yakalama (rakam, nokta, harf)
-        for (int key = Input.Keys.A; key <= Input.Keys.Z; key++) {
-            if (Gdx.input.isKeyJustPressed(key)) {
-                ipInput.append(Input.Keys.toString(key).toLowerCase());
-            }
-        }
-        for (int key = Input.Keys.NUM_0; key <= Input.Keys.NUM_9; key++) {
-            if (Gdx.input.isKeyJustPressed(key)) {
-                ipInput.append(Input.Keys.toString(key));
-            }
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.PERIOD)) {
-            ipInput.append(".");
-        }
+    private boolean isAllowedChar(char c) {
+        return Character.isLetterOrDigit(c) || c == '.' || c == ':' || c == '-';
     }
 
     private void startConnection() {
@@ -182,10 +172,19 @@ public class OnlineLobbyScreen implements Screen {
         game.setScreen(new OnlineGameScreen(game, ipInput.toString().trim()));
     }
 
-    @Override public void show()   {}
+    @Override
+    public void show() {
+        // Gerçek karakter girişini almak için InputProcessor olarak kaydol.
+        Gdx.input.setInputProcessor(this);
+    }
+
+    @Override
+    public void hide() {
+        Gdx.input.setInputProcessor(null);
+    }
+
     @Override public void pause()  {}
     @Override public void resume() {}
-    @Override public void hide()   {}
 
     @Override
     public void resize(int width, int height) {
@@ -199,4 +198,37 @@ public class OnlineLobbyScreen implements Screen {
         batch.dispose();
         shapeRenderer.dispose();
     }
+
+    // ------------------------------------------------------------------
+    // InputProcessor: keyTyped, işletim sisteminin klavye düzenine göre
+    // ürettiği GERÇEK karakteri verir. Bu sayede '.' gibi tuşlar,
+    // aktif klavye düzeni ne olursa olsun (TR-Q, US, vb.) doğru çalışır.
+    // ------------------------------------------------------------------
+
+    @Override
+    public boolean keyTyped(char character) {
+        if (connecting) return false;
+
+        if (character == '\b') { // backspace
+            if (ipInput.length() > 0) {
+                ipInput.deleteCharAt(ipInput.length() - 1);
+            }
+            return true;
+        }
+
+        if (isAllowedChar(character)) {
+            ipInput.append(character);
+            return true;
+        }
+        return false;
+    }
+
+    @Override public boolean keyDown(int keycode) { return false; }
+    @Override public boolean keyUp(int keycode) { return false; }
+    @Override public boolean touchDown(int screenX, int screenY, int pointer, int button) { return false; }
+    @Override public boolean touchUp(int screenX, int screenY, int pointer, int button) { return false; }
+    @Override public boolean touchCancelled(int screenX, int screenY, int pointer, int button) { return false; }
+    @Override public boolean touchDragged(int screenX, int screenY, int pointer) { return false; }
+    @Override public boolean mouseMoved(int screenX, int screenY) { return false; }
+    @Override public boolean scrolled(float amountX, float amountY) { return false; }
 }
