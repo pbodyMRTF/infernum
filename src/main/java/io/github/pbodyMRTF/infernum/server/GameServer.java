@@ -113,7 +113,7 @@ public class GameServer {
         collisionGrid = CollisionGrid.loadFromFile("collision_flape.txt");
         mapWidth  = collisionGrid.getMapWidthPixels();
         mapHeight = collisionGrid.getMapHeightPixels();
-        System.out.println("Harita boyutu: " + mapWidth + "x" + mapHeight);
+        System.out.println("Map: " + mapWidth + "x" + mapHeight);
 
         server = new Server(65536, 65536);
         NetworkRegistry.register(server);
@@ -131,7 +131,7 @@ public class GameServer {
                     int fromSameIp = connectionsPerIp.getOrDefault(ip, 0);
                     if (pendingJoinDeadline.size() >= MAX_PENDING_CONNECTIONS
                             || fromSameIp >= MAX_CONNECTIONS_PER_IP) {
-                        System.out.println("UYARI: bağlantı reddedildi (limit aşıldı), IP=" + ip
+                        System.out.println("WARNING: Connection refused (player limit reached), IP=" + ip
                                 + " connID=" + c.getID());
                         c.close();
                         return;
@@ -292,7 +292,7 @@ public class GameServer {
 
         server.bind(NetworkRegistry.TCP_PORT);
         server.start();
-        System.out.println("Sunucu başladı. Port: " + NetworkRegistry.TCP_PORT);
+        System.out.println("Server Started. Port: " + NetworkRegistry.TCP_PORT);
 
         spawnManager = new ServerSpawnManager(
                 entityManager, mapWidth, mapHeight,
@@ -363,16 +363,16 @@ public class GameServer {
 
     private void printHelp() {
         System.out.println("--------------------------------------------------");
-        System.out.println(" Komutlar:");
-        System.out.println("   start           -> oyunu (simülasyonu) başlatır");
-        System.out.println("   stop            -> oyunu durdurur (bağlantılar kopmaz)");
-        System.out.println("   restart         -> durumu sıfırlayıp oyunu yeniden başlatır");
-        System.out.println("   status          -> bağlı oyuncu sayısı ve oyun durumunu gösterir");
-        System.out.println("   maxp <n>        -> maksimum oyuncu sayısını ayarlar (" + MIN_MAX_PLAYERS
-                + "-" + MAX_MAX_PLAYERS + "), sadece kimse bağlı değilken ve oyun durmuşken");
-        System.out.println("   password <p>    -> katılım parolası koyar (client 'parola:isim' göndermeli)");
-        System.out.println("   password off    -> parola korumasını kapatır");
-        System.out.println("   help            -> bu mesajı gösterir");
+        System.out.println(" Commands:");
+        System.out.println("   start           -> starts the game (simulation)");
+        System.out.println("   stop            -> stops the game (connections remain active)");
+        System.out.println("   restart         -> resets the state and restarts the game");
+        System.out.println("   status          -> shows the number of connected players and game status");
+        System.out.println("   maxp <n>        -> sets the maximum number of players (" + MIN_MAX_PLAYERS
+                + "-" + MAX_MAX_PLAYERS + "), only when no one is connected and the game is stopped");
+        System.out.println("   password <p>    -> sets a join password (client must send 'password:name')");
+        System.out.println("   password off    -> disables password protection");
+        System.out.println("   help            -> shows this message");
         System.out.println("--------------------------------------------------");
     }
 
@@ -425,28 +425,26 @@ public class GameServer {
         }
         synchronized (playersLock) {
             if (connectedCount > 0 || gameStarted) {
-                System.out.println("maxp sadece kimse bağlı değilken ve oyun durmuşken değiştirilebilir. "
-                        + "(Bağlı: " + connectedCount + ", oyun " + (gameStarted ? "çalışıyor" : "durdu") + ")");
+                System.out.println("maxp can only be changed when no players are connected and the game is stopped. "
+                        + "(Connected: " + connectedCount + ", game " + (gameStarted ? "running" : "stopped") + ")");
                 return;
             }
             players    = new ServerPlayerState[n];
             maxPlayers = n;
         }
-        System.out.println("Maksimum oyuncu sayısı " + n + " olarak ayarlandı.");
+        System.out.println("Maximum player count set to " + n + ".");
     }
 
     private void cmdStart() {
         synchronized (gameLock) {
             if (gameStarted) {
-                System.out.println("Oyun zaten çalışıyor.");
+                System.out.println("Game is already running.");
                 return;
             }
             resetGameState();
             gameStarted = true;
-            System.out.println("Oyun başlatıldı. (Bağlı oyuncu: " + connectedCount + "/" + maxPlayers + ")");
-            if (connectedCount < maxPlayers) {
-                System.out.println("UYARI: lobi henüz dolu değil, yine de başlatıldı.");
-            }
+            System.out.println("Game Started!. (Connected Players: " + connectedCount + "/" + maxPlayers + ")");
+
         }
         broadcastReadyToAll(true);
     }
@@ -454,11 +452,11 @@ public class GameServer {
     private void cmdStop() {
         synchronized (gameLock) {
             if (!gameStarted) {
-                System.out.println("Oyun zaten durdurulmuş durumda.");
+                System.out.println("Game is already paused.");
                 return;
             }
             gameStarted = false;
-            System.out.println("Oyun durduruldu. Bağlantılar açık kalıyor.");
+            System.out.println("Game stopped.");
         }
         // NOT: NetworkClient tarafında gameReady=false bir "lobiye dön"
         // davranışı tetiklemiyor (sadece true iken onGameReady çağrılıyor),
@@ -472,14 +470,14 @@ public class GameServer {
         synchronized (gameLock) {
             resetGameState();
             gameStarted = true;
-            System.out.println("Oyun yeniden başlatıldı.");
+            System.out.println("Game Restarted.");
         }
         broadcastReadyToAll(true);
     }
 
     private void cmdStatus() {
-        System.out.println("Bağlı oyuncu: " + connectedCount + "/" + maxPlayers + " | Oyun durumu: "
-                + (gameStarted ? "ÇALIŞIYOR" : "DURDU"));
+        System.out.println("Connected players: " + connectedCount + "/" + maxPlayers + " | Status: "
+                + (gameStarted ? "RUNNING" : "PAUSED"));
     }
 
     // FIX: daha önce burada yeni ve client tarafında KAYITLI OLMAYAN bir

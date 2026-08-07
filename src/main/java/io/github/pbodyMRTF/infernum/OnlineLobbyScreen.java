@@ -74,21 +74,21 @@ public class OnlineLobbyScreen implements Screen, InputProcessor {
 
         font.getData().setScale(2.0f);
         font.setColor(1, 0.3f, 0.2f, menuAlpha);
-        font.draw(batch, "SUNUCUYA BAĞLAN", VIRTUAL_WIDTH / 2f - 160, VIRTUAL_HEIGHT - 100);
+        font.draw(batch, "Connect To Server", VIRTUAL_WIDTH / 2f - 160, VIRTUAL_HEIGHT - 100);
         font.getData().setScale(1f);
 
         float centerX = VIRTUAL_WIDTH / 2f - 150;
         float labelY  = VIRTUAL_HEIGHT / 2f + 100;
 
         font.setColor(1, 1, 1, menuAlpha);
-        font.draw(batch, "Sunucu IP:", centerX, labelY);
+        font.draw(batch, "Server IP:", centerX, labelY);
 
         // Giriş alanı, seçili menü öğesi gibi vurgulanır ve yanıp söner
         font.setColor(1, 1, 0, menuAlpha * selectionBlink);
         font.draw(batch, "> " + ipInput.toString() + "_ <", centerX, labelY - 60);
 
         font.setColor(1, 1, 1, menuAlpha);
-        font.draw(batch, "[ENTER] Bağlan   [ESC] Geri", centerX, labelY - 140);
+        font.draw(batch, "[ENTER] Connect   [ESC] back", centerX, labelY - 140);
 
         if (!statusMessage.isEmpty()) {
             font.setColor(0.6f, 1f, 0.6f, menuAlpha);
@@ -168,7 +168,7 @@ public class OnlineLobbyScreen implements Screen, InputProcessor {
     private void startConnection() {
         ConfirmSound.play();
         connecting    = true;
-        statusMessage = "Bağlanılıyor...";
+        statusMessage = "Connecting...";
         game.setScreen(new OnlineGameScreen(game, ipInput.toString().trim()));
     }
 

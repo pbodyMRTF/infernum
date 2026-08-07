@@ -173,7 +173,7 @@ public class OnlineGameScreen implements Screen {
             Gdx.app.postRunnable(() -> {
                 myPlayerId = pid;
                 gameReady  = true;
-                System.out.println("Oyun hazır! Ben oyuncu " + pid);
+                System.out.println("Game Ready! pid: " + pid);
             });
         });
 
@@ -182,7 +182,7 @@ public class OnlineGameScreen implements Screen {
                 networkClient.connect(serverHost);
             } catch (IOException e) {
                 Gdx.app.postRunnable(() ->
-                        System.err.println("Bağlantı hatası: " + e.getMessage())
+                        System.err.println("Connection Error: " + e.getMessage())
                 );
             }
         }).start();
@@ -363,9 +363,9 @@ public class OnlineGameScreen implements Screen {
         Gdx.gl.glClear(com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT);
         batch.setProjectionMatrix(uiCamera.combined);
         batch.begin();
-        font.draw(batch, "Sunucuya bağlanılıyor...", 300, 400);
+        font.draw(batch, "Connecting To Server...", 300, 400);
         if (networkClient.getMyPlayerId() >= 0 && !gameReady) {
-            font.draw(batch, "Diğer oyuncu bekleniyor...", 300, 360);
+            font.draw(batch, "Waiting for other players...", 300, 360);
         }
         batch.end();
     }
