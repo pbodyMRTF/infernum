@@ -622,6 +622,9 @@ public class OnlineGameScreen implements Screen {
         batch.setProjectionMatrix(uiCamera.combined);
         batch.begin();
 
+        // HUD text color
+        font.setColor(Color.WHITE);
+
         // Score
         font.draw(batch, "Score: " + currentState.score, 20, UI_HEIGHT - 20);
 
@@ -644,7 +647,9 @@ public class OnlineGameScreen implements Screen {
                 default -> current;
             };
         }
+
         batch.draw(current, hotbarX, hotbarY, hotbarWidth, hotbarHeight);
+
         if (me != null) renderBayonetCooldownBar(me);
 
         batch.end();
