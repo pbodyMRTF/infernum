@@ -9,7 +9,7 @@ buildscript {
 }
 apply plugin: "java"
 apply plugin: "application"
-version = '1.2.1'
+version = 'v1.3'
 ext {
     appName = "infernum"
     gdxVersion = '1.12.1'
