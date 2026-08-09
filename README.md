@@ -10,6 +10,9 @@
 ### Screenshots
 ![screenshot](screenshots/4.png)
 ![screenshot](screenshots/3.png)
+![screenshot](screenshots/2.png)
+![screenshot](screenshots/1.png)
+
 
 ---
 
@@ -79,6 +82,7 @@ java -jar build/dist/benim-oyunum-1.0-dist.jar
 
 - [LibGDX](https://libgdx.com/) game framework
 - [Tiled](https://www.mapeditor.org/) map editor
+- [Box2D](https://box2d.org/) 2D physics engine
 
 ---
 
@@ -88,8 +92,9 @@ java -jar build/dist/benim-oyunum-1.0-dist.jar
 
 ### Ekran Görüntüleri
 ![screenshot](screenshots/4tr.png)
+![screenshot](screenshots/3.png)
+![screenshot](screenshots/2.png)
 ![screenshot](screenshots/1.png)
-
 ---
 
 ### Özellikler
@@ -158,3 +163,4 @@ java -jar build/dist/benim-oyunum-1.0-dist.jar
 
 - [LibGDX](https://libgdx.com/) oyun framework'ü
 - [Tiled](https://www.mapeditor.org/) harita editörü
+- [Box2D](https://box2d.org/) 2D fizik motoru
