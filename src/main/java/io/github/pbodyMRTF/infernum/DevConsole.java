@@ -38,9 +38,11 @@ public class DevConsole {
     private static final int    MAX_VISIBLE_LINES = 18;
     private static final int    MAX_HISTORY_LINES = 300;
 
+    private final Jgame game;
+
     // Tab-complete desteği için bilinen komut listesi
     private static final List<String> COMMAND_NAMES = Arrays.asList(
-            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "cheats", "speed", "noclip", "god", "sound"
+            "help", "clear", "version", "startgame", "halt", "echo", "hud-scale", "hud-color", "cheats", "speed", "noclip", "god", "sound", "connect"
     );
 
 
@@ -53,6 +55,7 @@ public class DevConsole {
     private final InputAdapter inputProcessor;
 
     public DevConsole(final Jgame game) {
+        this.game           = game;
         this.batch         = new SpriteBatch();
         this.shapeRenderer = new ShapeRenderer();
 
@@ -279,7 +282,7 @@ public class DevConsole {
         switch (cmd) {
             case "help":
                 history.add("Available commands: help, clear, version, startgame, halt, echo, hud-scale, hud-color, cheats, speed, sound");
-                history.add("noclip, god");
+                history.add("noclip, god, connect");
                 break;
             case "clear":
                 history.clear();
@@ -319,6 +322,16 @@ public class DevConsole {
                     }
                 } else {
                     history.add("Usage: hud_scale <number>");
+                }
+                break;
+            case "connect":
+                if (parts.length >= 2) {
+                    String ip = parts[1].trim();
+                    history.add("Connecting to " + ip + "...");
+                    close(); // konsolu kapat ki OnlineGameScreen input alabilsin
+                    game.setScreen(new OnlineGameScreen(game, ip));
+                } else {
+                    history.add("Usage: connect <ip>");
                 }
                 break;
             case "hud-color":
