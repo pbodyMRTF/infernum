@@ -234,7 +234,7 @@ public class MainMenuScreen implements Screen {
         if (confirm) {
             ConfirmSound.play(1 * MasterSound);
             switch (selectedOption) {
-                case 0: game.setScreen(new GameScreen(game));       dispose(); break;
+                case 0: game.setScreen(new SurvivalGameScreen(game));       dispose(); break;
                 case 1: game.setScreen(new OnlineLobbyScreen(game)); dispose(); break;
                 case 2: game.setScreen(new TutorialScreen(game));   dispose(); break;
                 case 3: game.setScreen(new SettingsScreen(game));   dispose(); break;
