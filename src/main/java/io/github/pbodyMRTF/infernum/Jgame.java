@@ -41,12 +41,11 @@ public class Jgame extends Game {
 
     @Override
     public void create() {
-        Version = "Release 1.3";
+        Version = loadVersion();
         createFonts();
         loadBundle();
         setScreen(new LoadingScreen(this));
     }
-
     public void loadBundle() {
         GameConfig cfg = ConfigManager.loadConfig();
         Locale locale = "en".equals(cfg.language)
@@ -54,6 +53,28 @@ public class Jgame extends Game {
                 : new Locale("tr", "TR");
         bundle = I18NBundle.createBundle(
                 Gdx.files.internal("i18n/strings"), locale, "UTF-8");
+    }
+    private String loadVersion() { // Versionu al
+        try {
+            var properties = new java.util.Properties();
+
+            try (var input = Jgame.class
+                    .getClassLoader()
+                    .getResourceAsStream("version.properties")) {
+
+                if (input == null) {
+                    return "DEV";
+                }
+
+                properties.load(input);
+            }
+
+            return properties.getProperty("version", "DEV");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "DEV";
+        }
     }
 
     private void createFonts() {
